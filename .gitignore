@@ -1,0 +1,5 @@
+node_modules/
+dist/
+.foundry-data/
+coverage/
+result
