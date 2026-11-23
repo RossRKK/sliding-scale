@@ -26,6 +26,10 @@
         run-foundry = pkgs.writeShellScriptBin "run-foundry" ''
           exec ${pkgs.python3.withPackages scriptPythonPackages}/bin/python3 ${./scripts/run_foundry.py} --foundry ${foundry}/bin/foundryvtt "$@"
         '';
+
+        install-foundry-package = pkgs.writeShellScriptBin "install-foundry-package" ''
+          exec ${pkgs.python3.withPackages scriptPythonPackages}/bin/python3 ${./scripts/install_foundry_package.py} "$@"
+        '';
       });
 
       devShells = forAllSystems (system: pkgs: {
@@ -36,6 +40,7 @@
             (pkgs.python3.withPackages (ps: scriptPythonPackages ps ++ [ ps.pytest ]))
             pkgs.ruff
             self.packages.${system}.run-foundry
+            self.packages.${system}.install-foundry-package
           ];
         };
       });
