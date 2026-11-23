@@ -1,0 +1,15 @@
+{
+    "id": "building-creatures-npc",
+    "title": "Building Creatures NPC",
+    "description": "NPC stat blocks stored as level plus a scale (extreme, high, moderate, low, terrible) and derived at roll time.",
+    "version": "0.0.0",
+    "authors": [{ "name": "Ross Kelso" }],
+    "compatibility": {
+        "minimum": "14",
+        "verified": "14.364"
+    },
+    "esmodules": ["main.js"],
+    "relationships": {
+        "systems": [{ "id": "pf2e", "type": "system" }]
+    }
+}

@@ -1,0 +1,5 @@
+dist/
+.foundry-data/
+package-lock.json
+flake.lock
+intent.md

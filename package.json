@@ -1,0 +1,19 @@
+{
+    "name": "building-creatures-npc",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "build": "vite build",
+        "dev": "vite build --watch --mode development",
+        "check": "tsc --noEmit",
+        "lint": "oxlint && prettier --check .",
+        "format": "prettier --write ."
+    },
+    "devDependencies": {
+        "@7h3laughingman/pf2e-types": "^8.0.2",
+        "oxlint": "^1.95.0",
+        "prettier": "^3.10.1",
+        "typescript": "^7.0.2",
+        "vite": "^8.3.8"
+    }
+}
