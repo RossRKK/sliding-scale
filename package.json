@@ -10,7 +10,7 @@
         "format": "prettier --write . && ruff format scripts",
         "test": "vitest run",
         "test:watch": "vitest",
-        "foundry": "run-foundry .foundry-data dist",
+        "foundry": "run-foundry",
         "foundry:install-pf2e": "install-foundry-package .foundry-data systems https://raw.githubusercontent.com/foundryvtt/pf2e/v14-dev/system.pf2e.json",
         "foundry:install-anachronism": "install-foundry-package .foundry-data modules https://raw.githubusercontent.com/foundryvtt/pf2e/v14-dev/module.sf2e-anachronism.json",
         "test:scripts": "pytest scripts"

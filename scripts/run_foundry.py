@@ -13,9 +13,23 @@ app = typer.Typer(add_completion=False)
 @app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
 def main(
     ctx: typer.Context,
-    data_dir: Annotated[Path, typer.Argument(help="Foundry user data directory")],
-    module_dir: Annotated[Path, typer.Argument(help="built module directory (has module.json)")],
     foundry: Annotated[Path, typer.Option(help="foundryvtt executable")],
+    data_dir: Annotated[
+        Path,
+        typer.Option(
+            default_factory=lambda: project_root(Path.cwd()) / ".foundry-data",
+            show_default="<project>/.foundry-data",
+            help="Foundry user data directory",
+        ),
+    ],
+    module_dir: Annotated[
+        Path,
+        typer.Option(
+            default_factory=lambda: project_root(Path.cwd()) / "dist",
+            show_default="<project>/dist",
+            help="built module directory (has module.json)",
+        ),
+    ],
 ) -> None:
     """Run a local Foundry server with a built module linked into its data directory.
 
@@ -28,6 +42,16 @@ def main(
         raise SystemExit(f"run-foundry: {error}; build the module first (npm run build)")
 
     os.execv(foundry, [str(foundry), f"--dataPath={data_dir}", "--noupnp", "--noupdate", *ctx.args])
+
+
+def project_root(start: Path) -> Path:
+    """The nearest directory at or above start holding flake.nix, so defaults work from subdirectories."""
+    for directory in [start, *start.parents]:
+        if (directory / "flake.nix").is_file():
+            return directory
+    raise SystemExit(
+        f"run-foundry: no flake.nix at or above {start}; pass --data-dir and --module-dir"
+    )
 
 
 class MissingManifestError(Exception):

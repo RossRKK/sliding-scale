@@ -3,7 +3,20 @@ from pathlib import Path
 
 import pytest
 
-from run_foundry import MissingManifestError, link_module
+from run_foundry import MissingManifestError, link_module, project_root
+
+
+def test_project_root_is_found_from_a_subdirectory(tmp_path: Path) -> None:
+    (tmp_path / "flake.nix").touch()
+    subdirectory = tmp_path / "src" / "deep"
+    subdirectory.mkdir(parents=True)
+
+    assert project_root(subdirectory) == tmp_path
+
+
+def test_missing_project_root_is_reported(tmp_path: Path) -> None:
+    with pytest.raises(SystemExit):
+        project_root(tmp_path)
 
 
 def built_module(path: Path, module_id: str) -> Path:
