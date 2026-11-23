@@ -1,5 +1,5 @@
-import manifest from "../public/module.json";
+import { registerLevelChange } from "./foundry/level-change";
 
 Hooks.once("init", () => {
-    console.log(`${manifest.id} | initialising for system ${game.system.id}`);
+    registerLevelChange();
 });
