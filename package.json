@@ -1,22 +1,24 @@
 {
-    "name": "building-creatures-npc",
-    "private": true,
-    "type": "module",
-    "scripts": {
-        "build": "vite build",
-        "dev": "vite build --watch --mode development",
-        "check": "tsc --noEmit",
-        "lint": "oxlint && prettier --check .",
-        "format": "prettier --write .",
-        "test": "vitest run",
-        "test:watch": "vitest"
-    },
-    "devDependencies": {
-        "@7h3laughingman/pf2e-types": "^8.0.2",
-        "oxlint": "^1.95.0",
-        "prettier": "^3.10.1",
-        "typescript": "^7.0.2",
-        "vite": "^8.3.8",
-        "vitest": "^5.1.1"
-    }
+  "name": "building-creatures-npc",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch --mode development",
+    "check": "tsc --noEmit",
+    "lint": "oxlint && prettier --check . && ruff check scripts && ruff format --check scripts",
+    "format": "prettier --write . && ruff format scripts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "foundry": "run-foundry .foundry-data dist",
+    "test:scripts": "pytest scripts"
+  },
+  "devDependencies": {
+    "@7h3laughingman/pf2e-types": "^8.0.2",
+    "oxlint": "^1.95.0",
+    "prettier": "^3.10.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.1"
+  }
 }
