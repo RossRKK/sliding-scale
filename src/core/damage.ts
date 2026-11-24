@@ -7,6 +7,14 @@ export interface Dice {
     readonly size: number;
 }
 
+/** The dice the Strike Damage table is built from; a strike rolling any other die is not rescaled. */
+export const WEAPON_DIE_SIZES = [4, 6, 8, 10, 12] as const;
+
+export interface WeaponDice {
+    readonly count: number;
+    readonly size: (typeof WEAPON_DIE_SIZES)[number];
+}
+
 /** A damage formula of the shape NPC strikes use: optional dice plus a flat modifier. */
 export interface Formula {
     readonly dice: Dice | undefined;
@@ -18,7 +26,7 @@ export type SideCategory = "precision" | "persistent" | "splash";
 
 /** A strike's damage as Sliding Scale sees it. */
 export interface StrikeDamage {
-    readonly main: { readonly key: string; readonly dice: Dice; readonly flat: number };
+    readonly main: { readonly key: string; readonly dice: WeaponDice; readonly flat: number };
     /** Other plain partials (like 1d6 fire): counted in the average, never rewritten. */
     readonly extras: readonly Formula[];
     /** Precision, persistent and splash partials: not counted, scaled by their category's rule. */
@@ -80,6 +88,11 @@ export function damageDiceAt(level: number): number | undefined {
         (f) => f !== undefined,
     );
     return example === undefined ? undefined : parseFormula(example)?.dice?.count;
+}
+
+export function weaponDice({ count, size }: Dice): WeaponDice | undefined {
+    const weaponSize = WEAPON_DIE_SIZES.find((weaponSize) => weaponSize === size);
+    return weaponSize === undefined ? undefined : { count, size: weaponSize };
 }
 
 /** Accepts NdX followed by any number of signed integers (pf2e data has "3d6+12+2"), or a bare integer. */

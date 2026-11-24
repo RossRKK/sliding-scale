@@ -1,6 +1,7 @@
 import {
     damageAverage,
     parseFormula,
+    weaponDice,
     type Formula,
     type SideCategory,
     type StrikeDamage,
@@ -19,7 +20,7 @@ const SIDE_CATEGORIES = [
     "splash",
 ] as const satisfies readonly SideCategory[];
 
-/** Strikes whose damage the helper cannot read (no plain dice partial, odd formulas) are not scaled. */
+/** Strikes whose damage the helper cannot read (no plain dice partial, odd formulas or dice) are not scaled. */
 export function strikeDamageStat<Target>(
     itemId: string,
     system: object,
@@ -41,11 +42,12 @@ export function strikeDamageStat<Target>(
 function readStrikeDamage(partials: readonly DamagePartial[]): StrikeDamage | undefined {
     const [mainPartial, ...extraPartials] = partials.filter(({ category }) => category === null);
     const main = mainPartial === undefined ? undefined : parseFormula(mainPartial.damage);
-    if (mainPartial === undefined || main?.dice === undefined) return undefined;
+    const dice = main?.dice === undefined ? undefined : weaponDice(main.dice);
+    if (mainPartial === undefined || main === undefined || dice === undefined) return undefined;
     const extras = extraPartials.map(({ damage }) => parseFormula(damage));
     if (!extras.every((extra): extra is Formula => extra !== undefined)) return undefined;
     return {
-        main: { key: mainPartial.key, dice: main.dice, flat: main.flat },
+        main: { key: mainPartial.key, dice, flat: main.flat },
         extras,
         sides: partials.flatMap(sidePartial),
     };

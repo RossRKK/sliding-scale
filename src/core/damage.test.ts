@@ -7,6 +7,7 @@ import {
     formatFormula,
     parseFormula,
     rebuildDamage,
+    weaponDice,
     type SideCategory,
     type StrikeDamage,
 } from "./damage";
@@ -118,6 +119,16 @@ describe("side partials", () => {
     });
 });
 
+describe("weaponDice", () => {
+    it.each([4, 6, 8, 10, 12])("accepts a d%i", (size) => {
+        expect(weaponDice({ count: 2, size })).toEqual({ count: 2, size });
+    });
+
+    it.each([3, 9, 18, 20])("rejects a d%i, which no Strike Damage row rolls", (size) => {
+        expect(weaponDice({ count: 1, size })).toBeUndefined();
+    });
+});
+
 describe("diceShare", () => {
     it("is the fraction of the main partial's average that comes from dice", () => {
         expect(diceShare(mainOnly("1d4+20").main)).toBeCloseTo(2.5 / 22.5);
@@ -127,5 +138,5 @@ describe("diceShare", () => {
 
 function mainOnly(formula: string): StrikeDamage {
     const { dice, flat } = parseFormula(formula)!;
-    return { main: { key: "main", dice: dice!, flat }, extras: [], sides: [] };
+    return { main: { key: "main", dice: weaponDice(dice!)!, flat }, extras: [], sides: [] };
 }
