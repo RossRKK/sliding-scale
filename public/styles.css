@@ -40,3 +40,16 @@
     align-items: center;
     font-size: var(--font-size-12, 12px);
 }
+
+.bcnpc-pause {
+    flex: none;
+    width: auto;
+    height: auto;
+    padding: 0 0.5em;
+    line-height: 1.6;
+    font-size: inherit;
+}
+
+.bcnpc-pause.paused {
+    font-weight: bold;
+}

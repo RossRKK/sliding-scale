@@ -1,12 +1,34 @@
 import type { NPCPF2e } from "@7h3laughingman/pf2e-types";
+import { setPaused } from "./documents";
+
+interface HeaderState {
+    readonly paused: boolean;
+    readonly editable: boolean;
+}
 
 /** A row under pf2e's NPC sheet header for the build helper's own controls. */
-export function addHeaderBar(npc: NPCPF2e, root: HTMLElement): void {
+export function addHeaderBar(npc: NPCPF2e, root: HTMLElement, state: HeaderState): void {
     const bar = document.createElement("div");
     bar.className = "bcnpc-header";
+    bar.append(pauseToggle(npc, state));
     const link = sourceLink(npc._stats.compendiumSource);
     if (link !== undefined) bar.append(link);
-    if (bar.childElementCount > 0) root.querySelector(".npc-body > header")?.append(bar);
+    root.querySelector(".npc-body > header")?.append(bar);
+}
+
+function pauseToggle(npc: NPCPF2e, { paused, editable }: HeaderState): HTMLButtonElement {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = paused ? "bcnpc-pause paused" : "bcnpc-pause";
+    button.disabled = !editable;
+    button.innerHTML = paused
+        ? `<i class="fa-solid fa-play"></i> Build helper paused: resume`
+        : `<i class="fa-solid fa-pause"></i> Pause build helper`;
+    button.dataset.tooltip = paused
+        ? "Adjectives will be re-derived from the current numbers"
+        : "Stop rescaling on level changes and hide the adjective dropdowns";
+    button.addEventListener("click", () => void setPaused(npc, !paused));
+    return button;
 }
 
 /** Homebrew NPCs have no compendium source, so they get no link. */

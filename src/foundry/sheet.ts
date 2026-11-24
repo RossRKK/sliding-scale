@@ -4,22 +4,28 @@ import { adjectivesAt, derive, type Rating } from "../core/scale";
 import { TABLE_OF } from "../core/stats";
 import { asNpc, writeUpdate } from "./documents";
 import { addHeaderBar } from "./header";
-import { readNpc, type NpcStat } from "./npc";
+import { readNpc, type ActiveBuild, type NpcStat } from "./npc";
 import { planAdjectives } from "./updates";
 
-/** Adds the compendium link and an adjective dropdown beside each scaled stat to pf2e's NPC sheet. */
+/** Adds the header controls and, unless paused, an adjective dropdown per scaled stat to pf2e's NPC sheet. */
 export function registerSheetControls(): void {
     Hooks.on("renderNPCSheetPF2e", (sheet: unknown, html: unknown) => {
         const npc = asNpc((sheet as { actor?: unknown }).actor);
         const root = rootElement(html);
         if (npc === undefined || root === undefined) return;
-        addHeaderBar(npc, root);
-        addAdjectiveControls(npc, root, isEditable(sheet));
+        const build = readNpc(npc._source);
+        const editable = isEditable(sheet);
+        addHeaderBar(npc, root, { paused: build.state === "paused", editable });
+        if (build.state === "active") addAdjectiveControls(npc, build, root, editable);
     });
 }
 
-function addAdjectiveControls(npc: NPCPF2e, root: HTMLElement, editable: boolean): void {
-    const build = readNpc(npc._source);
+function addAdjectiveControls(
+    npc: NPCPF2e,
+    build: ActiveBuild,
+    root: HTMLElement,
+    editable: boolean,
+): void {
     for (const stat of build.stats) {
         const table = TABLE_OF[stat.kind];
         const rating = derive(table, build.level, stat.value);
@@ -36,7 +42,9 @@ function addAdjectiveControls(npc: NPCPF2e, root: HTMLElement, editable: boolean
 
 /** Re-reads the source so a change made since the sheet rendered is not overwritten. */
 async function setAdjective(npc: NPCPF2e, statId: string, adjective: Adjective): Promise<void> {
-    await writeUpdate(npc, planAdjectives(readNpc(npc._source), new Map([[statId, adjective]])));
+    const build = readNpc(npc._source);
+    if (build.state === "paused") return;
+    await writeUpdate(npc, planAdjectives(build, new Map([[statId, adjective]])));
 }
 
 function adjectiveSelect(

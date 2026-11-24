@@ -11,6 +11,7 @@ export function npcSource(): NpcSource {
             saves: { fortitude: { value: 12 }, reflex: { value: 9 }, will: { value: 6 } },
             skills: { athletics: { base: 10 }, stealth: { base: null } },
         },
+        flags: {},
         items: [
             { _id: "strike1", type: "melee", system: { bonus: { value: 12 } } },
             {

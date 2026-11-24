@@ -1,7 +1,7 @@
 import { applyAdjectives, rescaleStats, type StatChange } from "../core/stats";
 import type { Adjective } from "../core/adjective";
 import { hitPointAdjustment } from "../core/elite-weak";
-import type { NpcBuild, Target } from "./npc";
+import type { ActiveBuild, Target } from "./npc";
 
 /** Foundry updates for one NPC: the actor's own fields and one entry per changed embedded item. */
 export interface NpcUpdate {
@@ -16,7 +16,7 @@ export interface ItemUpdate {
 
 /** User-entered fields in the same update win over rescaled ones. */
 export function planLevelChange(
-    build: NpcBuild,
+    build: ActiveBuild,
     newLevel: number,
     alreadyChanged: ReadonlySet<string>,
 ): NpcUpdate {
@@ -30,7 +30,7 @@ export function planLevelChange(
 }
 
 export function planAdjectives(
-    build: NpcBuild,
+    build: ActiveBuild,
     adjectives: ReadonlyMap<string, Adjective>,
 ): NpcUpdate {
     return toUpdate(applyAdjectives(build.stats, build.level, adjectives), 0);

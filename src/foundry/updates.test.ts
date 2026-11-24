@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { npcSource } from "./fixtures";
-import { readNpc } from "./npc";
+import { readNpc, type ActiveBuild, type NpcSource } from "./npc";
 import { planAdjectives, planLevelChange } from "./updates";
 
 describe("readNpc", () => {
     it("reads one stat per scaled number, skipping skills the NPC lacks and unscaled items", () => {
-        const ids = readNpc(npcSource()).stats.map((stat) => stat.id);
+        const ids = activeNpc(npcSource()).stats.map((stat) => stat.id);
         expect(ids).toEqual([
             "attribute:str",
             "attribute:dex",
@@ -25,7 +25,7 @@ describe("readNpc", () => {
 
 describe("planLevelChange", () => {
     it("rescales actor fields and embedded items from level 3 to 4", () => {
-        expect(planLevelChange(readNpc(npcSource()), 4, new Set())).toEqual({
+        expect(planLevelChange(activeNpc(npcSource()), 4, new Set())).toEqual({
             actor: {
                 "system.abilities.str.mod": 5,
                 "system.perception.mod": 11,
@@ -49,7 +49,7 @@ describe("planLevelChange", () => {
 
     it("leaves fields the user changed in the same update alone", () => {
         const plan = planLevelChange(
-            readNpc(npcSource()),
+            activeNpc(npcSource()),
             4,
             new Set(["system.attributes.ac.value"]),
         );
@@ -64,7 +64,7 @@ describe("planLevelChange", () => {
             ...source,
             system: { ...source.system, attributes: { ...source.system.attributes, hp } },
         };
-        expect(planLevelChange(readNpc(wounded), 1, new Set()).actor).toMatchObject({
+        expect(planLevelChange(activeNpc(wounded), 1, new Set()).actor).toMatchObject({
             "system.attributes.hp.max": 20,
             "system.attributes.hp.value": 0,
         });
@@ -79,7 +79,7 @@ describe("planLevelChange", () => {
             system: { ...source.system, attributes: { ...attributes, hp: { value: 60, max: 45 } } },
         };
         // Level 5: moderate HP 78–72 (75) plus the +20 elite bonus.
-        expect(planLevelChange(readNpc(elite), 5, new Set()).actor).toMatchObject({
+        expect(planLevelChange(activeNpc(elite), 5, new Set()).actor).toMatchObject({
             "system.attributes.hp.max": 75,
             "system.attributes.hp.value": 95,
         });
@@ -92,9 +92,27 @@ describe("planAdjectives", () => {
             ["armorClass", "extreme"],
             ["spellDC:casting1", "moderate"],
         ] as const);
-        expect(planAdjectives(readNpc(npcSource()), adjectives)).toEqual({
+        expect(planAdjectives(activeNpc(npcSource()), adjectives)).toEqual({
             actor: { "system.attributes.ac.value": 22 },
             items: [{ itemId: "casting1", fields: { "system.spelldc.dc": 17 } }],
         });
     });
 });
+
+describe("pausing", () => {
+    it("reads a paused NPC as paused, with no stats to scale", () => {
+        const paused = { ...npcSource(), flags: { "building-creatures-npc": { paused: true } } };
+        expect(readNpc(paused)).toEqual({ state: "paused" });
+    });
+
+    it("reads an unpaused NPC from whatever numbers it has, with nothing to reconcile", () => {
+        const resumed = { ...npcSource(), flags: { "building-creatures-npc": { paused: false } } };
+        expect(readNpc(resumed)).toEqual(readNpc(npcSource()));
+    });
+});
+
+function activeNpc(source: NpcSource): ActiveBuild {
+    const build = readNpc(source);
+    if (build.state === "paused") throw new Error("fixture NPC is paused");
+    return build;
+}

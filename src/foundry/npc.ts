@@ -3,6 +3,7 @@ import type { Adjustment } from "../core/elite-weak";
 import type { Stat } from "../core/stats";
 
 export const MODULE_ID = manifest.id;
+export const PAUSE_FLAG = "paused";
 
 /** Where a scaled number is stored on a pf2e NPC. */
 export type Target =
@@ -13,8 +14,11 @@ export type Target =
 
 export type NpcStat = Stat<Target>;
 
-/** The build helper's view of an NPC. */
-export interface NpcBuild {
+/** The build helper's view of an NPC; a paused NPC is never scaled, so nothing else is read. */
+export type NpcBuild = { readonly state: "paused" } | ActiveBuild;
+
+export interface ActiveBuild {
+    readonly state: "active";
     readonly level: number;
     readonly adjustment: Adjustment | undefined;
     readonly stats: readonly NpcStat[];
@@ -34,6 +38,7 @@ export interface NpcSource {
         readonly saves: Readonly<Record<string, { readonly value: number }>>;
         readonly skills: Readonly<Partial<Record<string, { readonly base: number | null }>>>;
     };
+    readonly flags: Readonly<Partial<Record<string, unknown>>>;
     readonly items: readonly ItemSource[];
 }
 
@@ -44,11 +49,24 @@ interface ItemSource {
 }
 
 export function readNpc(source: NpcSource): NpcBuild {
+    if (isPaused(source)) return { state: "paused" };
     return {
+        state: "active",
         level: source.system.details.level.value,
         adjustment: source.system.attributes.adjustment ?? undefined,
         stats: [...actorStats(source.system), ...source.items.flatMap(itemStats)],
     };
+}
+
+/** The user's escape hatch for hand-tuning numbers: genuine state, so it is the one stored flag. */
+function isPaused(source: NpcSource): boolean {
+    const flags = source.flags[MODULE_ID];
+    return (
+        typeof flags === "object" &&
+        flags !== null &&
+        PAUSE_FLAG in flags &&
+        flags[PAUSE_FLAG] === true
+    );
 }
 
 function actorStats(system: NpcSource["system"]): NpcStat[] {
