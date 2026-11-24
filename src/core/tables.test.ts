@@ -7,7 +7,10 @@ const TABLES = Object.entries(tables).filter(
     (entry): entry is [string, tables.ScaleTable] => entry[1] instanceof Map,
 );
 
-describe.each(TABLES)("%s", (_name, table) => {
+// Book anomalies: level -1 strike damage lists high 1d4+1 and moderate 1d4 both as 3.
+const KNOWN_TIES = new Set(["STRIKE_DAMAGE -1"]);
+
+describe.each(TABLES)("%s", (name, table) => {
     it("covers levels -1 to 24", () => {
         expect([...table.keys()]).toEqual(LEVELS);
     });
@@ -17,7 +20,8 @@ describe.each(TABLES)("%s", (_name, table) => {
         const values = ADJECTIVES.flatMap((adjective) => columns[adjective] ?? []);
         const descending = values.toSorted((a, b) => b - a);
         expect(values).toEqual(descending);
-        expect(new Set(values).size).toBe(values.length);
+        const ties = KNOWN_TIES.has(`${name} ${level}`) ? 1 : 0;
+        expect(new Set(values).size).toBe(values.length - ties);
     });
 });
 
@@ -32,7 +36,9 @@ describe("transcription", () => {
         ["HIT_POINTS", -1, { high: 9, moderate: 8, low: 6 }],
         ["HIT_POINTS", 0, { high: 19, moderate: 15, low: 12 }],
         ["STRIKE_ATTACK_BONUS", 7, { extreme: 20, high: 18, moderate: 16, low: 13 }],
-        ["SPELL_DC", 11, { extreme: 34, high: 30, moderate: 27 }],
+        ["STRIKE_DAMAGE", -1, { extreme: 4, high: 3, moderate: 3, low: 2 }],
+        ["STRIKE_DAMAGE", 7, { extreme: 25, high: 20, moderate: 17, low: 13 }],
+        ["SPELL_DC", 11,{ extreme: 34, high: 30, moderate: 27 }],
         ["SPELL_ATTACK", 11, { extreme: 26, high: 22, moderate: 19 }],
     ] as const)(
         "%s at level %i matches GM Core, ranges at their median",
