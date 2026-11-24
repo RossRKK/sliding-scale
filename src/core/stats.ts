@@ -30,6 +30,9 @@ export const TABLE_OF = {
     spellDC: tables.SPELL_DC,
     spellAttack: tables.SPELL_ATTACK,
     strikeDamage: tables.STRIKE_DAMAGE,
+    // Starfinder GM Core p. 128 sets active ability DCs, which Area Fire is, on the Spell DC table.
+    areaDC: tables.SPELL_DC,
+    areaDamage: tables.AREA_DAMAGE,
 } as const satisfies Record<string, ScaleTable>;
 
 export function rescaleStats<Target>(

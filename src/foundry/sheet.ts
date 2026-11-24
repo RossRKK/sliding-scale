@@ -112,7 +112,14 @@ function findAnchor(root: HTMLElement, stat: NpcStat): Anchor | undefined {
             const field = `[data-base-property$=".${target.path}"]`;
             return after(root.querySelector(`[data-spellcasting-entry]${item} ${field}`));
         }
+        case "areaDC":
+            return inside(
+                root.querySelector(
+                    `[data-item-id="${target.itemId}"][data-strike] .subsection.attack`,
+                ),
+            );
         case "strikeDamage":
+        case "areaDamage":
             return inside(
                 root.querySelector(
                     `[data-item-id="${target.itemId}"][data-strike] .subsection.damage`,

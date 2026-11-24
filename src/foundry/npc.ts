@@ -14,7 +14,9 @@ export type Target =
     | { readonly kind: "skill"; readonly slug: string }
     | { readonly kind: "hitPoints"; readonly current: number }
     | { readonly kind: "itemField"; readonly itemId: string; readonly path: string }
-    | { readonly kind: "strikeDamage"; readonly itemId: string; readonly damage: StrikeDamage };
+    | { readonly kind: "areaDC"; readonly itemId: string }
+    | { readonly kind: "strikeDamage"; readonly itemId: string; readonly damage: StrikeDamage }
+    | { readonly kind: "areaDamage"; readonly itemId: string; readonly damage: StrikeDamage };
 
 export type NpcStat = Stat<Target>;
 
@@ -120,30 +122,70 @@ function skillStats(skills: NpcSource["system"]["skills"]): NpcStat[] {
 }
 
 const ITEM_FIELDS = {
-    melee: [{ kind: "strikeAttack", path: "system.bonus.value" }],
     spellcastingEntry: [
         { kind: "spellDC", path: "system.spelldc.dc" },
         { kind: "spellAttack", path: "system.spelldc.value" },
     ],
 } as const satisfies Record<string, readonly { kind: NpcStat["kind"]; path: string }[]>;
 
+/** pf2e's area attacks are saved against at their bonus + 10 instead of being rolled. */
+export const AREA_DC_ABOVE_BONUS = 10;
+
+type AttackKind = "strike" | "area";
+
+const ATTACK_KINDS: Readonly<Record<string, AttackKind>> = {
+    strike: "strike",
+    "area-fire": "area",
+    "auto-fire": "area",
+};
+
 function itemStats(item: ItemSource): NpcStat[] {
     const { _id: itemId, type } = item;
-    if (itemId === null || !isScaledItemType(type)) return [];
-    const fields = ITEM_FIELDS[type].flatMap(({ kind, path }): NpcStat[] => {
+    if (itemId === null) return [];
+    if (type === "melee") return attackStats(itemId, item.system);
+    if (!isScaledItemType(type)) return [];
+    return ITEM_FIELDS[type].flatMap(({ kind, path }): NpcStat[] => {
         const value = numberAt(item, path);
         if (value === undefined) return [];
         return [
             { id: `${kind}:${itemId}`, kind, value, target: { kind: "itemField", itemId, path } },
         ];
     });
-    if (type !== "melee") return fields;
-    const damageTarget = (damage: StrikeDamage): Target => ({
-        kind: "strikeDamage",
-        itemId,
-        damage,
-    });
-    return [...fields, ...strikeDamageStat(itemId, item.system, damageTarget)];
+}
+
+const DAMAGE_KINDS = { strike: "strikeDamage", area: "areaDamage" } as const;
+
+/** An attack with an action pf2e may add later is left alone rather than rated on the wrong tables. */
+function attackStats(itemId: string, system: object): NpcStat[] {
+    const attack = attackKind(system);
+    if (attack === undefined) return [];
+    const bonus = numberAt(system, "bonus.value");
+    const kind = DAMAGE_KINDS[attack];
+    const damageTarget = (damage: StrikeDamage): Target => ({ kind, itemId, damage });
+    return [
+        ...(bonus === undefined ? [] : [rollStat(itemId, attack, bonus)]),
+        ...strikeDamageStat(kind, itemId, system, damageTarget),
+    ];
+}
+
+function rollStat(itemId: string, attack: AttackKind, bonus: number): NpcStat {
+    if (attack === "area") {
+        const value = bonus + AREA_DC_ABOVE_BONUS;
+        return {
+            id: `areaDC:${itemId}`,
+            kind: "areaDC",
+            value,
+            target: { kind: "areaDC", itemId },
+        };
+    }
+    const target = { kind: "itemField", itemId, path: "system.bonus.value" } as const;
+    return { id: `strikeAttack:${itemId}`, kind: "strikeAttack", value: bonus, target };
+}
+
+/** pf2e defaults a missing action to a Strike. */
+function attackKind(system: object): AttackKind | undefined {
+    const action = "action" in system ? system.action : "strike";
+    return typeof action === "string" ? ATTACK_KINDS[action] : undefined;
 }
 
 function isScaledItemType(type: string | undefined): type is keyof typeof ITEM_FIELDS {

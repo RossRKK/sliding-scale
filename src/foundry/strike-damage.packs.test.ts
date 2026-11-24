@@ -185,7 +185,7 @@ function rereadWith(
     const rolls = item.system.damageRolls;
     const main = rolls[damage.main.key];
     const system = { damageRolls: { ...rolls, [damage.main.key]: { ...main, damage: formula } } };
-    const [stat] = strikeDamageStat(item._id, system, (read) => read);
+    const [stat] = strikeDamageStat("strikeDamage", item._id, system, (read) => read);
     return stat?.target;
 }
 
@@ -203,15 +203,19 @@ function packStrikes(dir: string): PackStrike[] {
         if (npc.type !== "npc") return [];
         const level = npc.system.details.level.value;
         return (npc.items ?? [])
-            .filter((item) => item.type === "melee")
+            .filter(
+                (item) => item.type === "melee" && (item.system.action ?? "strike") === "strike",
+            )
             .flatMap((item) =>
-                strikeDamageStat(item._id, item.system, (damage) => damage).map(({ target }) => ({
-                    system,
-                    name: `${npc.name}: ${item.name}`,
-                    level,
-                    item,
-                    damage: target,
-                })),
+                strikeDamageStat("strikeDamage", item._id, item.system, (damage) => damage).map(
+                    ({ target }) => ({
+                        system,
+                        name: `${npc.name}: ${item.name}`,
+                        level,
+                        item,
+                        damage: target,
+                    }),
+                ),
             );
     });
 }
@@ -227,7 +231,10 @@ interface PackItem {
     readonly _id: string;
     readonly name: string;
     readonly type: string;
-    readonly system: { readonly damageRolls: Readonly<Record<string, object>> };
+    readonly system: {
+        readonly action?: string;
+        readonly damageRolls: Readonly<Record<string, object>>;
+    };
 }
 
 function jsonFiles(dir: string): string[] {

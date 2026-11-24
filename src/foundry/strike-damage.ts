@@ -6,7 +6,7 @@ import {
     type SideCategory,
     type StrikeDamage,
 } from "../core/damage";
-import type { Stat } from "../core/stats";
+import type { Stat, StatKind } from "../core/stats";
 
 interface DamagePartial {
     readonly key: string;
@@ -22,6 +22,7 @@ const SIDE_CATEGORIES = [
 
 /** Strikes whose damage the helper cannot read (no plain dice partial, odd formulas or dice) are not scaled. */
 export function strikeDamageStat<Target>(
+    kind: Extract<StatKind, "strikeDamage" | "areaDamage">,
     itemId: string,
     system: object,
     target: (damage: StrikeDamage) => Target,
@@ -30,8 +31,8 @@ export function strikeDamageStat<Target>(
     if (damage === undefined) return [];
     return [
         {
-            id: `strikeDamage:${itemId}`,
-            kind: "strikeDamage",
+            id: `${kind}:${itemId}`,
+            kind,
             value: damageAverage(damage),
             target: target(damage),
         },

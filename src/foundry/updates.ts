@@ -1,8 +1,8 @@
-import { rebuildDamage, type PartialChange } from "../core/damage";
+import { rebuildAreaDamage, rebuildDamage, type PartialChange } from "../core/damage";
 import { applyAdjectives, rescaleStats, type StatChange } from "../core/stats";
 import type { Adjective } from "../core/adjective";
 import { hitPointAdjustment, type Adjustment } from "../core/elite-weak";
-import type { ActiveBuild, Target } from "./npc";
+import { AREA_DC_ABOVE_BONUS, type ActiveBuild, type Target } from "./npc";
 import { rescaleAbility } from "./precision-abilities";
 
 /** Foundry updates for one NPC: the actor's own fields and one entry per changed embedded item. */
@@ -73,10 +73,22 @@ export function toUpdate(changes: readonly StatChange<Target>[], levels: LevelCh
             case "itemField":
                 items.set(target.itemId, { ...items.get(target.itemId), [target.path]: to });
                 break;
+            case "areaDC":
+                items.set(target.itemId, {
+                    ...items.get(target.itemId),
+                    "system.bonus.value": to - AREA_DC_ABOVE_BONUS,
+                });
+                break;
             case "strikeDamage":
                 items.set(target.itemId, {
                     ...items.get(target.itemId),
                     ...damageFields(rebuildDamage(target.damage, to, levels.from, levels.to)),
+                });
+                break;
+            case "areaDamage":
+                items.set(target.itemId, {
+                    ...items.get(target.itemId),
+                    ...damageFields(rebuildAreaDamage(target.damage, to, levels.from, levels.to)),
                 });
                 break;
         }

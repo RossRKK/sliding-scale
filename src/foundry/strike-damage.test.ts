@@ -27,7 +27,7 @@ describe("pack strikes", () => {
     });
 
     it("leaves a strike alone when its die is not a weapon die", () => {
-        expect(strikeDamageStat("spit", ALPACA_SPIT, () => undefined)).toEqual([]);
+        expect(strikeDamageStat("strikeDamage", "spit", ALPACA_SPIT, () => undefined)).toEqual([]);
     });
 });
 
@@ -41,7 +41,7 @@ function buildWith(level: number, system: object): ActiveBuild {
         state: "active",
         level,
         adjustment: undefined,
-        stats: strikeDamageStat("strike", system, target),
+        stats: strikeDamageStat("strikeDamage", "strike", system, target),
         precisionAbilities: [],
     };
 }
