@@ -1,8 +1,9 @@
 # Building Creatures NPC
 
 A Foundry VTT module for the pf2e system (played with the Starfinder Anachronism
-module) whose NPC stats are stored as level + scale and derived at roll time. See
-[intent.md](intent.md) for what it will do.
+module). It reads each NPC stat as an adjective (extreme/high/moderate/low/terrible)
+plus an offset from the Building Creatures tables, lets you change the adjective on
+the sheet, and rescales every stat when the level changes.
 
 ## One-time setup
 
