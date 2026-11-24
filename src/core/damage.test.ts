@@ -6,6 +6,7 @@ import {
     diceShare,
     formatFormula,
     parseFormula,
+    rebuildAreaDamage,
     rebuildDamage,
     weaponDice,
     type SideCategory,
@@ -142,6 +143,25 @@ describe("rescaling strike damage", () => {
 
     it("has nothing to rebuild for a level off the table", () => {
         expect(rebuildDamage(mainOnly("1d8+6"), 10, 3, 25)).toBeUndefined();
+    });
+});
+
+describe("rebuilding area damage", () => {
+    it.each([
+        ["rolls the table's own expression when it shares the die", "1d8", 9, "2d8"],
+        ["keeps the creature's die, adding only what a die cannot reach", "2d6", 9, "2d6+2"],
+        ["ignores the creature's dice count", "6d10", 14, "2d10+3"],
+        ["keeps one die with no flat when even that overshoots", "3d12", 4, "1d12"],
+    ])("%s", (_case, formula, target, expected) => {
+        expect(rebuildAreaDamage(mainOnly(formula), target, 3, 3)).toEqual([
+            { key: "main", formula: expected },
+        ]);
+    });
+
+    it("counts extra partials towards the target", () => {
+        const damage = { ...mainOnly("2d6"), extras: [parseFormula("1d6")!] };
+        // 3d6 plus 1d6 averages 14, over 12; 2d6 plus 1d6 is 10.
+        expect(rebuildAreaDamage(damage, 12, 5, 5)).toEqual([{ key: "main", formula: "2d6+2" }]);
     });
 });
 

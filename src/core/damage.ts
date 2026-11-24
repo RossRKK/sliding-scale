@@ -66,11 +66,34 @@ export function rebuildDamage(
     const toCount = damageDiceAt(toLevel);
     if (fromCount === undefined || toCount === undefined) return undefined;
     const wanted = damage.main.dice.count + toCount - fromCount;
-    const dice = fittingDice(damage, { count: wanted, size: damage.main.dice.size }, target);
+    return rebuildWith(damage, target, wanted, { fromLevel, toLevel });
+}
+
+/**
+ * Rewrites an area attack's main partial as the Area Damage table writes its examples: as many of
+ * the creature's own dice as fit the target, with a flat modifier only for what a die cannot reach.
+ */
+export function rebuildAreaDamage(
+    damage: StrikeDamage,
+    target: number,
+    fromLevel: number,
+    toLevel: number,
+): PartialChange[] {
+    const die = exactAverage({ dice: { ...damage.main.dice, count: 1 }, flat: 0 });
+    return rebuildWith(damage, target, Math.floor(target / die) + 1, { fromLevel, toLevel });
+}
+
+function rebuildWith(
+    damage: StrikeDamage,
+    target: number,
+    wantedCount: number,
+    levels: Levels,
+): PartialChange[] {
+    const dice = fittingDice(damage, { count: wantedCount, size: damage.main.dice.size }, target);
     const flat = Math.max(0, target - diceAverage(damage, dice));
     const main = { key: damage.main.key, formula: formatFormula({ dice, flat }) };
     const sides = damage.sides.flatMap(({ key, category, formula }) => {
-        const scaled = SIDE_SCALING[category](formula, { fromLevel, toLevel });
+        const scaled = SIDE_SCALING[category](formula, levels);
         const changed = formatFormula(scaled) !== formatFormula(formula);
         return changed ? [{ key, formula: formatFormula(scaled) }] : [];
     });
