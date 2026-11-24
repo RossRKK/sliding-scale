@@ -6,6 +6,7 @@ import { TABLE_OF } from "../core/stats";
 import { asNpc, writeUpdate } from "./documents";
 import { addHeaderBar } from "./header";
 import { readNpc, type ActiveBuild, type NpcStat } from "./npc";
+import { descriptionMayBeStale } from "./precision-abilities";
 import { planAdjectives } from "./updates";
 
 /** Adds the header controls and, unless paused, an adjective dropdown per scaled stat to pf2e's NPC sheet. */
@@ -17,8 +18,19 @@ export function registerSheetControls(): void {
         const build = readNpc(npc._source);
         const editable = isEditable(sheet);
         addHeaderBar(npc, root, { paused: build.state === "paused", editable });
-        if (build.state === "active") addAdjectiveControls(npc, build, root, editable);
+        if (build.state === "paused") return;
+        addAdjectiveControls(npc, build, root, editable);
+        addStaleDescriptionHints(build, root);
     });
+}
+
+function addStaleDescriptionHints(build: ActiveBuild, root: HTMLElement): void {
+    for (const ability of build.precisionAbilities.filter(descriptionMayBeStale)) {
+        const name = root.querySelector(`li.action[data-item-id="${ability.itemId}"] h4 .name`);
+        name?.append(
+            warningIcon("The description may not match this ability's precision dice any more"),
+        );
+    }
 }
 
 function addAdjectiveControls(
