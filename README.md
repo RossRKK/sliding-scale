@@ -1,9 +1,10 @@
 # PF2e Sliding Scale
 
 A Foundry VTT module for the pf2e system (played with the Starfinder Anachronism
-module). It reads each NPC stat as an adjective (extreme/high/moderate/low/terrible)
-plus an offset from the Building Creatures tables, lets you change the adjective on
-the sheet, and rescales every stat when the level changes.
+module) and the standalone Starfinder Second Edition (sf2e) system. It reads each NPC
+stat as an adjective (extreme/high/moderate/low/terrible) plus an offset from the
+Building Creatures tables, lets you change the adjective on the sheet, and rescales
+every stat when the level changes.
 
 It is off for every NPC until you press **Enable Sliding Scale** on that NPC's sheet.
 Enabling changes no numbers; **Disable Sliding Scale** stops the rescaling and hides the
@@ -44,6 +45,7 @@ npm ci
 ```sh
 npm run foundry:install-pf2e         # pf2e system into .foundry-data/
 npm run foundry:install-anachronism  # Starfinder Anachronism module
+npm run foundry:install-sf2e         # optional: the standalone sf2e system
 npm run build                        # or keep `npm run dev` running in another terminal
 npm run foundry                      # serves http://localhost:30000
 ```
@@ -59,6 +61,11 @@ Manual steps on first start (Foundry stores them in `.foundry-data/`):
 2. Create a world using the Pathfinder Second Edition system.
 3. Launch it and enable **PF2e Sliding Scale** and **Starfinder Anachronism** under
    Manage Modules.
+
+An sf2e world needs only **PF2e Sliding Scale** enabled. sf2e is built from the same
+[pf2e repository](https://github.com/foundryvtt/pf2e) with `SYSTEM_ID=sf2e`, so it keeps
+`CONFIG.PF2E`, the `NPCSheetPF2e` sheet and the NPC data model, and the module runs
+unchanged in it.
 
 ## Types
 
