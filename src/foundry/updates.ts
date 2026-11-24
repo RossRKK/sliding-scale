@@ -1,6 +1,6 @@
 import { applyAdjectives, rescaleStats, type StatChange } from "../core/stats";
 import type { Adjective } from "../core/adjective";
-import { hitPointAdjustment } from "../core/elite-weak";
+import { hitPointAdjustment, type Adjustment } from "../core/elite-weak";
 import type { ActiveBuild, Target } from "./npc";
 
 /** Foundry updates for one NPC: the actor's own fields and one entry per changed embedded item. */
@@ -14,17 +14,22 @@ export interface ItemUpdate {
     readonly fields: Readonly<Record<string, number>>;
 }
 
+/** The levels a set of stat changes moves between; equal for an adjective change. */
+interface LevelChange {
+    readonly from: number;
+    readonly to: number;
+    readonly adjustment: Adjustment | undefined;
+}
+
 /** User-entered fields in the same update win over rescaled ones. */
 export function planLevelChange(
     build: ActiveBuild,
     newLevel: number,
     alreadyChanged: ReadonlySet<string>,
 ): NpcUpdate {
-    const bonusChange =
-        hitPointAdjustment(build.adjustment, newLevel) -
-        hitPointAdjustment(build.adjustment, build.level);
     const changes = rescaleStats(build.stats, build.level, newLevel);
-    const { actor, items } = toUpdate(changes, bonusChange);
+    const levels = { from: build.level, to: newLevel, adjustment: build.adjustment };
+    const { actor, items } = toUpdate(changes, levels);
     const kept = Object.entries(actor).filter(([path]) => !alreadyChanged.has(path));
     return { actor: Object.fromEntries(kept), items };
 }
@@ -33,14 +38,11 @@ export function planAdjectives(
     build: ActiveBuild,
     adjectives: ReadonlyMap<string, Adjective>,
 ): NpcUpdate {
-    return toUpdate(applyAdjectives(build.stats, build.level, adjectives), 0);
+    const levels = { from: build.level, to: build.level, adjustment: build.adjustment };
+    return toUpdate(applyAdjectives(build.stats, build.level, adjectives), levels);
 }
 
-/** Current HP moves with max HP (and any change in elite/weak bonus) so damage taken is kept. */
-export function toUpdate(
-    changes: readonly StatChange<Target>[],
-    hitPointBonusChange: number,
-): NpcUpdate {
+export function toUpdate(changes: readonly StatChange<Target>[], levels: LevelChange): NpcUpdate {
     const actor: Record<string, number> = {};
     const items = new Map<string, Record<string, number>>();
     for (const { target, from, to } of changes) {
@@ -53,9 +55,11 @@ export function toUpdate(
                 break;
             case "hitPoints":
                 actor["system.attributes.hp.max"] = to;
-                actor["system.attributes.hp.value"] = Math.max(
-                    0,
-                    target.current + to - from + hitPointBonusChange,
+                actor["system.attributes.hp.value"] = currentHitPoints(
+                    target.current,
+                    from,
+                    to,
+                    levels,
                 );
                 break;
             case "itemField":
@@ -64,4 +68,12 @@ export function toUpdate(
         }
     }
     return { actor, items: [...items].map(([itemId, fields]) => ({ itemId, fields })) };
+}
+
+/** Current HP moves with max HP and with the level-dependent elite/weak bonus, so damage taken is kept. */
+function currentHitPoints(current: number, from: number, to: number, levels: LevelChange): number {
+    const bonusChange =
+        hitPointAdjustment(levels.adjustment, levels.to) -
+        hitPointAdjustment(levels.adjustment, levels.from);
+    return Math.max(0, current + to - from + bonusChange);
 }
