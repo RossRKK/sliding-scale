@@ -1,7 +1,7 @@
 import type { NPCPF2e } from "@7h3laughingman/pf2e-types";
 import type { Adjective } from "../core/adjective";
 import { diceShare } from "../core/damage";
-import { adjectivesAt, derive, type Rating } from "../core/scale";
+import { adjectivesOf, derive, type Rating } from "../core/scale";
 import { TABLE_OF } from "../core/stats";
 import { asNpc, writeUpdate } from "./documents";
 import { addHeaderBar } from "./header";
@@ -44,7 +44,7 @@ function addAdjectiveControls(
         const rating = derive(table, build.level, stat.value);
         const anchor = findAnchor(root, stat);
         if (rating === undefined || anchor === undefined) continue;
-        const select = adjectiveSelect(adjectivesAt(table, build.level), rating, editable);
+        const select = adjectiveSelect(adjectivesOf(table), rating, editable);
         select.dataset.statId = stat.id;
         select.addEventListener("change", () => {
             void setAdjective(npc, stat.id, select.value as Adjective);

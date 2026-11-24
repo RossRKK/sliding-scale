@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { adjectivesAt, columnValue, derive, rescale } from "./scale";
+import { adjectivesOf, columnValue, derive, rescale } from "./scale";
 import { ARMOR_CLASS, ATTRIBUTE_MODIFIERS, HIT_POINTS, SAVING_THROWS } from "./tables";
 
 describe("derive", () => {
@@ -17,8 +17,9 @@ describe("derive", () => {
         expect(derive(ARMOR_CLASS, 3, 17)).toEqual({ adjective: "moderate", offset: -1 });
     });
 
-    it("skips columns the level does not have", () => {
-        expect(derive(ATTRIBUTE_MODIFIERS, 0, 6)).toEqual({ adjective: "high", offset: 3 });
+    it("rates against a column the level lacks at the nearest level that has it", () => {
+        // No extreme attribute below level 1, where it is 5.
+        expect(derive(ATTRIBUTE_MODIFIERS, 0, 6)).toEqual({ adjective: "extreme", offset: 1 });
     });
 
     it("rates range tables against the median", () => {
@@ -26,8 +27,9 @@ describe("derive", () => {
         expect(derive(HIT_POINTS, 1, 20)).toEqual({ adjective: "moderate", offset: 0 });
     });
 
-    it("has no rating off the end of the table", () => {
-        expect(derive(ARMOR_CLASS, 25, 50)).toBeUndefined();
+    it("rates a level off the table against the nearest level", () => {
+        // Level 24 high AC is 51.
+        expect(derive(ARMOR_CLASS, 25, 52)).toEqual({ adjective: "high", offset: 1 });
     });
 });
 
@@ -41,13 +43,18 @@ describe("rescale", () => {
         expect(rescale(ARMOR_CLASS, 10, 3, 31)).toBe(20);
     });
 
-    it("leaves the stat alone when the new level lacks its column", () => {
-        expect(rescale(ATTRIBUTE_MODIFIERS, 1, 0, 5)).toBeUndefined();
+    it("round-trips through a level that lacks the stat's column", () => {
+        // Extreme 5 at level 1 keeps level 1's extreme at level 0, then comes back.
+        expect(rescale(ATTRIBUTE_MODIFIERS, 1, 0, 5)).toBe(5);
+        expect(rescale(ATTRIBUTE_MODIFIERS, 0, 1, 5)).toBe(5);
+        // Extreme +1 at level 3 used to keep its 6 at level 0 and come back as high +2, 6 → 7.
+        expect(rescale(ATTRIBUTE_MODIFIERS, 0, 3, rescale(ATTRIBUTE_MODIFIERS, 3, 0, 6)!)).toBe(6);
     });
 
-    it("leaves the stat alone when either level is off the table", () => {
-        expect(rescale(ARMOR_CLASS, 3, 25, 19)).toBeUndefined();
-        expect(rescale(ARMOR_CLASS, -2, 3, 19)).toBeUndefined();
+    it("treats levels off the table as the nearest level on it", () => {
+        expect(rescale(ARMOR_CLASS, 3, 25, 19)).toBe(51);
+        expect(rescale(ARMOR_CLASS, 25, 30, 53)).toBe(53);
+        expect(rescale(ARMOR_CLASS, 25, 3, 53)).toBe(21);
     });
 });
 
@@ -61,10 +68,10 @@ describe("columnValue", () => {
     });
 });
 
-describe("adjectivesAt", () => {
-    it("lists only the columns present at that level, highest first", () => {
-        expect(adjectivesAt(ATTRIBUTE_MODIFIERS, 0)).toEqual(["high", "moderate", "low"]);
-        expect(adjectivesAt(SAVING_THROWS, 0)).toEqual([
+describe("adjectivesOf", () => {
+    it("lists every column the table has at any level, highest first", () => {
+        expect(adjectivesOf(ATTRIBUTE_MODIFIERS)).toEqual(["extreme", "high", "moderate", "low"]);
+        expect(adjectivesOf(SAVING_THROWS)).toEqual([
             "extreme",
             "high",
             "moderate",

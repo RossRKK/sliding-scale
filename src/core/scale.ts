@@ -8,11 +8,9 @@ export interface Rating {
 }
 
 export function derive(table: ScaleTable, level: number, value: number): Rating | undefined {
-    const columns = table.get(level);
-    if (columns === undefined) return undefined;
     let best: Rating | undefined;
-    for (const adjective of ADJECTIVES) {
-        const column = columns[adjective];
+    for (const adjective of adjectivesOf(table)) {
+        const column = columnValue(table, level, adjective);
         if (column === undefined) continue;
         const offset = value - column;
         if (best === undefined || Math.abs(offset) < Math.abs(best.offset))
@@ -34,15 +32,29 @@ export function rescale(
     return column === undefined ? undefined : column + rating.offset;
 }
 
+/**
+ * A column a level lacks (no extreme attribute below level 1, no row past 24) is read at the
+ * nearest level that has it, so a stat moved through such a level comes back unchanged.
+ */
 export function columnValue(
     table: ScaleTable,
     level: number,
     adjective: Adjective,
 ): number | undefined {
-    return table.get(level)?.[adjective];
+    let nearest: { readonly distance: number; readonly value: number } | undefined;
+    for (const [rowLevel, columns] of table) {
+        const value = columns[adjective];
+        const distance = Math.abs(rowLevel - level);
+        if (value !== undefined && (nearest === undefined || distance < nearest.distance)) {
+            nearest = { distance, value };
+        }
+    }
+    return nearest?.value;
 }
 
-export function adjectivesAt(table: ScaleTable, level: number): Adjective[] {
-    const columns = table.get(level);
-    return columns === undefined ? [] : ADJECTIVES.filter((adjective) => adjective in columns);
+/** Every column the table has at some level, highest first. */
+export function adjectivesOf(table: ScaleTable): Adjective[] {
+    return ADJECTIVES.filter((adjective) =>
+        [...table.values()].some((columns) => adjective in columns),
+    );
 }

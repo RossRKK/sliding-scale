@@ -141,8 +141,10 @@ describe("rescaling strike damage", () => {
         ]);
     });
 
-    it("has nothing to rebuild for a level off the table", () => {
-        expect(rebuildDamage(mainOnly("1d8+6"), 10, 3, 25)).toBeUndefined();
+    it("uses the nearest row's dice count for a level off the table", () => {
+        expect(rebuildDamage(mainOnly("4d8+20"), 40, 24, 25)).toEqual([
+            { key: "main", formula: "4d8+22" },
+        ]);
     });
 });
 

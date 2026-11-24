@@ -12,7 +12,7 @@ import {
     WEAPON_DIE_SIZES,
 } from "../core/damage";
 import type { PartialChange, StrikeDamage } from "../core/damage";
-import { adjectivesAt, columnValue, rescale } from "../core/scale";
+import { adjectivesOf, columnValue, rescale } from "../core/scale";
 import { AREA_DAMAGE, STRIKE_DAMAGE, type ScaleTable } from "../core/tables";
 import { strikeDamageStat } from "./strike-damage";
 
@@ -169,7 +169,7 @@ function rebuildsOf(strike: PackStrike): Rebuild[] {
         if (moved?.reread === undefined) return [];
         const moveTo = moved.reread;
         const { table } = strike.rating;
-        const picked = adjectivesAt(table, toLevel).flatMap((adjective) => {
+        const picked = adjectivesOf(table).flatMap((adjective) => {
             const target = columnValue(table, toLevel, adjective);
             const rebuild =
                 target === undefined

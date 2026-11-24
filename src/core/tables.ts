@@ -390,7 +390,14 @@ function formulasAt(
     rows: readonly DamageRow[],
     level: number,
 ): Readonly<Partial<Record<Adjective, string>>> | undefined {
-    const row = rows.find(([rowLevel]) => rowLevel === level);
+    // Like columnValue, a level off the table reads the nearest row.
+    const row = rows.reduce<DamageRow | undefined>(
+        (nearest, candidate) =>
+            nearest === undefined || Math.abs(candidate[0] - level) < Math.abs(nearest[0] - level)
+                ? candidate
+                : nearest,
+        undefined,
+    );
     if (row === undefined) return undefined;
     const [, ...cells] = row;
     return Object.fromEntries(cells.map(([formula], index) => [columns[index], formula]));
