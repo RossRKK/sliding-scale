@@ -42,6 +42,30 @@ export function npcSource(): NpcSource {
                 system: { spelldc: { dc: 20, value: 12 } },
             },
             { _id: "feat1", type: "action", system: {} },
+            {
+                _id: "sneak1",
+                type: "action",
+                system: {
+                    description: {
+                        value: "<p>Deals an extra 1d6 precision damage to off-guard creatures.</p>",
+                    },
+                    rules: [
+                        {
+                            key: "DamageDice",
+                            category: "precision",
+                            diceNumber: 1,
+                            dieSize: "d6",
+                            selector: "strike-damage",
+                        },
+                        {
+                            key: "FlatModifier",
+                            damageCategory: "precision",
+                            selector: "strike-damage",
+                            value: 2,
+                        },
+                    ],
+                },
+            },
         ],
     };
 }

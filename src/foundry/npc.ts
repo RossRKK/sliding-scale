@@ -2,6 +2,7 @@ import manifest from "../../public/module.json";
 import type { Adjustment } from "../core/elite-weak";
 import type { StrikeDamage } from "../core/damage";
 import type { Stat } from "../core/stats";
+import { readPrecisionAbilities, type PrecisionAbility } from "./precision-abilities";
 import { strikeDamageStat } from "./strike-damage";
 
 export const MODULE_ID = manifest.id;
@@ -25,6 +26,8 @@ export interface ActiveBuild {
     readonly level: number;
     readonly adjustment: Adjustment | undefined;
     readonly stats: readonly NpcStat[];
+    /** Not table-rated, so not stats: they only follow level changes. */
+    readonly precisionAbilities: readonly PrecisionAbility[];
 }
 
 /** The parts of pf2e's NPC source the helper reads; pf2e's NPCSource satisfies it. */
@@ -58,6 +61,7 @@ export function readNpc(source: NpcSource): NpcBuild {
         level: source.system.details.level.value,
         adjustment: source.system.attributes.adjustment ?? undefined,
         stats: [...actorStats(source.system), ...source.items.flatMap(itemStats)],
+        precisionAbilities: readPrecisionAbilities(source.items),
     };
 }
 

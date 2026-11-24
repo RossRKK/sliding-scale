@@ -3,6 +3,7 @@ import { applyAdjectives, rescaleStats, type StatChange } from "../core/stats";
 import type { Adjective } from "../core/adjective";
 import { hitPointAdjustment, type Adjustment } from "../core/elite-weak";
 import type { ActiveBuild, Target } from "./npc";
+import { rescaleAbility } from "./precision-abilities";
 
 /** Foundry updates for one NPC: the actor's own fields and one entry per changed embedded item. */
 export interface NpcUpdate {
@@ -12,8 +13,10 @@ export interface NpcUpdate {
 
 export interface ItemUpdate {
     readonly itemId: string;
-    readonly fields: Readonly<Record<string, number | string>>;
+    readonly fields: Readonly<Record<string, ItemFieldValue>>;
 }
+
+type ItemFieldValue = number | string | readonly unknown[];
 
 /** The levels a set of stat changes moves between; equal for an adjective change. */
 interface LevelChange {
@@ -32,7 +35,11 @@ export function planLevelChange(
     const levels = { from: build.level, to: newLevel, adjustment: build.adjustment };
     const { actor, items } = toUpdate(changes, levels);
     const kept = Object.entries(actor).filter(([path]) => !alreadyChanged.has(path));
-    return { actor: Object.fromEntries(kept), items };
+    const abilities = build.precisionAbilities.flatMap((ability) => {
+        const fields = rescaleAbility(ability, build.level, newLevel);
+        return fields === undefined ? [] : [{ itemId: ability.itemId, fields }];
+    });
+    return { actor: Object.fromEntries(kept), items: [...items, ...abilities] };
 }
 
 export function planAdjectives(
@@ -45,7 +52,7 @@ export function planAdjectives(
 
 export function toUpdate(changes: readonly StatChange<Target>[], levels: LevelChange): NpcUpdate {
     const actor: Record<string, number> = {};
-    const items = new Map<string, Record<string, number | string>>();
+    const items = new Map<string, Record<string, ItemFieldValue>>();
     for (const { target, from, to } of changes) {
         switch (target.kind) {
             case "actorField":
