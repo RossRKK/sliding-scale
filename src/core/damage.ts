@@ -16,7 +16,7 @@ export interface Formula {
 /** pf2e's damage categories, none of which count toward the damage-per-Strike average. */
 export type SideCategory = "precision" | "persistent" | "splash";
 
-/** A strike's damage as the build helper sees it. */
+/** A strike's damage as Sliding Scale sees it. */
 export interface StrikeDamage {
     readonly main: { readonly key: string; readonly dice: Dice; readonly flat: number };
     /** Other plain partials (like 1d6 fire): counted in the average, never rewritten. */

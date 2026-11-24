@@ -1,4 +1,4 @@
-# Building Creatures NPC
+# PF2e Sliding Scale
 
 A Foundry VTT module for the pf2e system (played with the Starfinder Anachronism
 module). It reads each NPC stat as an adjective (extreme/high/moderate/low/terrible)
@@ -53,7 +53,7 @@ Manual steps on first start (Foundry stores them in `.foundry-data/`):
 
 1. Open http://localhost:30000, enter your licence key and accept the EULA.
 2. Create a world using the Pathfinder Second Edition system.
-3. Launch it and enable **Building Creatures NPC** and **Starfinder Anachronism** under
+3. Launch it and enable **PF2e Sliding Scale** and **Starfinder Anachronism** under
    Manage Modules.
 
 ## Types

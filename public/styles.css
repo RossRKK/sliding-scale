@@ -1,4 +1,4 @@
-.bcnpc-adjective {
+.pf2e-sliding-scale-adjective {
     width: auto;
     height: auto;
     min-height: 0;
@@ -9,24 +9,24 @@
 }
 
 /* Narrow slots on pf2e's NPC sheet: put the dropdown on its own full-width line. */
-.sheet.npc .attribute-modifiers .labeled-field:has(> .bcnpc-adjective) {
+.sheet.npc .attribute-modifiers .labeled-field:has(> .pf2e-sliding-scale-adjective) {
     display: grid;
     grid-template-columns: auto 1fr;
     align-items: center;
 }
 
-.sheet.npc .perception.labeled-field:has(> .bcnpc-adjective) {
+.sheet.npc .perception.labeled-field:has(> .pf2e-sliding-scale-adjective) {
     flex-wrap: wrap;
 }
 
-.sheet.npc .saves li:has(> .bcnpc-adjective) {
+.sheet.npc .saves li:has(> .pf2e-sliding-scale-adjective) {
     height: auto;
 }
 
-.sheet.npc .attribute-modifiers .bcnpc-adjective,
-.sheet.npc .perception > .bcnpc-adjective,
-.sheet.npc .saves .bcnpc-adjective,
-.sheet.npc .health > .bcnpc-adjective {
+.sheet.npc .attribute-modifiers .pf2e-sliding-scale-adjective,
+.sheet.npc .perception > .pf2e-sliding-scale-adjective,
+.sheet.npc .saves .pf2e-sliding-scale-adjective,
+.sheet.npc .health > .pf2e-sliding-scale-adjective {
     grid-column: 1 / -1;
     flex: none;
     width: 100%;
@@ -34,14 +34,14 @@
     font-size: var(--font-size-10, 10px);
 }
 
-.bcnpc-header {
+.pf2e-sliding-scale-header {
     display: flex;
     gap: 0.75em;
     align-items: center;
     font-size: var(--font-size-12, 12px);
 }
 
-.bcnpc-pause {
+.pf2e-sliding-scale-pause {
     flex: none;
     width: auto;
     height: auto;
@@ -50,11 +50,11 @@
     font-size: inherit;
 }
 
-.bcnpc-pause.paused {
+.pf2e-sliding-scale-pause.paused {
     font-weight: bold;
 }
 
-.bcnpc-warning {
+.pf2e-sliding-scale-warning {
     margin-inline-start: 0.25em;
     color: var(--color-level-warning, #c87d00);
 }

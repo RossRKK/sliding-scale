@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { npcSource } from "./fixtures";
-import { readNpc, type ActiveBuild, type NpcSource } from "./npc";
+import { MODULE_ID, readNpc, type ActiveBuild, type NpcSource } from "./npc";
 import { planAdjectives, planLevelChange } from "./updates";
 
 describe("readNpc", () => {
@@ -124,12 +124,12 @@ describe("planAdjectives", () => {
 
 describe("pausing", () => {
     it("reads a paused NPC as paused, with no stats to scale", () => {
-        const paused = { ...npcSource(), flags: { "building-creatures-npc": { paused: true } } };
+        const paused = { ...npcSource(), flags: { [MODULE_ID]: { paused: true } } };
         expect(readNpc(paused)).toEqual({ state: "paused" });
     });
 
     it("reads an unpaused NPC from whatever numbers it has, with nothing to reconcile", () => {
-        const resumed = { ...npcSource(), flags: { "building-creatures-npc": { paused: false } } };
+        const resumed = { ...npcSource(), flags: { [MODULE_ID]: { paused: false } } };
         expect(readNpc(resumed)).toEqual(readNpc(npcSource()));
     });
 });

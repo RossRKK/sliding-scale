@@ -5,7 +5,7 @@ import { adjectivesAt, derive, type Rating } from "../core/scale";
 import { TABLE_OF } from "../core/stats";
 import { asNpc, writeUpdate } from "./documents";
 import { addHeaderBar } from "./header";
-import { readNpc, type ActiveBuild, type NpcStat } from "./npc";
+import { MODULE_ID, readNpc, type ActiveBuild, type NpcStat } from "./npc";
 import { descriptionMayBeStale } from "./precision-abilities";
 import { planAdjectives } from "./updates";
 
@@ -68,7 +68,7 @@ function adjectiveSelect(
     editable: boolean,
 ): HTMLSelectElement {
     const select = document.createElement("select");
-    select.className = "bcnpc-adjective";
+    select.className = `${MODULE_ID}-adjective`;
     select.disabled = !editable;
     select.dataset.tooltip = `Building Creatures: ${ratingLabel(rating)}`;
     for (const adjective of adjectives) {
@@ -80,7 +80,7 @@ function adjectiveSelect(
 
 function warningIcon(message: string): HTMLElement {
     const icon = document.createElement("i");
-    icon.className = "bcnpc-warning fa-solid fa-triangle-exclamation";
+    icon.className = `${MODULE_ID}-warning fa-solid fa-triangle-exclamation`;
     icon.dataset.tooltip = message;
     return icon;
 }

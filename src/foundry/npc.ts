@@ -18,7 +18,7 @@ export type Target =
 
 export type NpcStat = Stat<Target>;
 
-/** The build helper's view of an NPC; a paused NPC is never scaled, so nothing else is read. */
+/** Sliding Scale's view of an NPC; a paused NPC is never scaled, so nothing else is read. */
 export type NpcBuild = { readonly state: "paused" } | ActiveBuild;
 
 export interface ActiveBuild {

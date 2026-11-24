@@ -1,15 +1,16 @@
 import type { NPCPF2e } from "@7h3laughingman/pf2e-types";
 import { setPaused } from "./documents";
+import { MODULE_ID } from "./npc";
 
 interface HeaderState {
     readonly paused: boolean;
     readonly editable: boolean;
 }
 
-/** A row under pf2e's NPC sheet header for the build helper's own controls. */
+/** A row under pf2e's NPC sheet header for Sliding Scale's own controls. */
 export function addHeaderBar(npc: NPCPF2e, root: HTMLElement, state: HeaderState): void {
     const bar = document.createElement("div");
-    bar.className = "bcnpc-header";
+    bar.className = `${MODULE_ID}-header`;
     bar.append(pauseToggle(npc, state));
     const link = sourceLink(npc._stats.compendiumSource);
     if (link !== undefined) bar.append(link);
@@ -19,7 +20,7 @@ export function addHeaderBar(npc: NPCPF2e, root: HTMLElement, state: HeaderState
 function pauseToggle(npc: NPCPF2e, { paused, editable }: HeaderState): HTMLButtonElement {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = paused ? "bcnpc-pause paused" : "bcnpc-pause";
+    button.className = paused ? `${MODULE_ID}-pause paused` : `${MODULE_ID}-pause`;
     button.disabled = !editable;
     button.innerHTML = paused
         ? `<i class="fa-solid fa-play"></i> Build helper paused: resume`
@@ -35,7 +36,7 @@ function pauseToggle(npc: NPCPF2e, { paused, editable }: HeaderState): HTMLButto
 function sourceLink(uuid: string | null | undefined): HTMLAnchorElement | undefined {
     if (typeof uuid !== "string") return undefined;
     const link = document.createElement("a");
-    link.className = "bcnpc-source";
+    link.className = `${MODULE_ID}-source`;
     link.dataset.tooltip = "Open the compendium original";
     link.innerHTML = `<i class="fa-solid fa-book"></i> `;
     link.append(fromUuidSync(uuid)?.name ?? "Compendium original");

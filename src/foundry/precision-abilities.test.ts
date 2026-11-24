@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { npcSource } from "./fixtures";
-import { readNpc, type NpcSource } from "./npc";
+import { MODULE_ID, readNpc, type NpcSource } from "./npc";
 import {
     descriptionMayBeStale,
     readPrecisionAbilities,
@@ -65,7 +65,7 @@ describe("precision abilities", () => {
     });
 
     it("is not read for a paused NPC", () => {
-        const paused = { ...npcSource(), flags: { "building-creatures-npc": { paused: true } } };
+        const paused = { ...npcSource(), flags: { [MODULE_ID]: { paused: true } } };
         expect(readNpc(paused)).toEqual({ state: "paused" });
     });
 });
