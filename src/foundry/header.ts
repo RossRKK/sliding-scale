@@ -23,8 +23,8 @@ function pauseToggle(npc: NPCPF2e, { paused, editable }: HeaderState): HTMLButto
     button.className = paused ? `${MODULE_ID}-pause paused` : `${MODULE_ID}-pause`;
     button.disabled = !editable;
     button.innerHTML = paused
-        ? `<i class="fa-solid fa-play"></i> Build helper paused: resume`
-        : `<i class="fa-solid fa-pause"></i> Pause build helper`;
+        ? `<i class="fa-solid fa-play"></i> Sliding Scale paused: resume`
+        : `<i class="fa-solid fa-pause"></i> Pause Sliding Scale`;
     button.dataset.tooltip = paused
         ? "Adjectives will be re-derived from the current numbers"
         : "Stop rescaling on level changes and hide the adjective dropdowns";

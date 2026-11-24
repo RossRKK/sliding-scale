@@ -70,7 +70,7 @@ function adjectiveSelect(
     const select = document.createElement("select");
     select.className = `${MODULE_ID}-adjective`;
     select.disabled = !editable;
-    select.dataset.tooltip = `Building Creatures: ${ratingLabel(rating)}`;
+    select.dataset.tooltip = `Sliding Scale: ${ratingLabel(rating)}`;
     for (const adjective of adjectives) {
         const label = adjective === rating.adjective ? ratingLabel(rating) : adjective;
         select.append(new Option(label, adjective, false, adjective === rating.adjective));
