@@ -1,5 +1,6 @@
 import { applyAdjectives, rescaleStats, type StatChange } from "../core/stats";
 import type { Adjective } from "../core/adjective";
+import { hitPointAdjustment } from "../core/elite-weak";
 import type { NpcBuild, Target } from "./npc";
 
 /** Foundry updates for one NPC: the actor's own fields and one entry per changed embedded item. */
@@ -19,7 +20,11 @@ export function planLevelChange(
     newLevel: number,
     alreadyChanged: ReadonlySet<string>,
 ): NpcUpdate {
-    const { actor, items } = toUpdate(rescaleStats(build.stats, build.level, newLevel));
+    const bonusChange =
+        hitPointAdjustment(build.adjustment, newLevel) -
+        hitPointAdjustment(build.adjustment, build.level);
+    const changes = rescaleStats(build.stats, build.level, newLevel);
+    const { actor, items } = toUpdate(changes, bonusChange);
     const kept = Object.entries(actor).filter(([path]) => !alreadyChanged.has(path));
     return { actor: Object.fromEntries(kept), items };
 }
@@ -28,10 +33,14 @@ export function planAdjectives(
     build: NpcBuild,
     adjectives: ReadonlyMap<string, Adjective>,
 ): NpcUpdate {
-    return toUpdate(applyAdjectives(build.stats, build.level, adjectives));
+    return toUpdate(applyAdjectives(build.stats, build.level, adjectives), 0);
 }
 
-export function toUpdate(changes: readonly StatChange<Target>[]): NpcUpdate {
+/** Current HP moves with max HP (and any change in elite/weak bonus) so damage taken is kept. */
+export function toUpdate(
+    changes: readonly StatChange<Target>[],
+    hitPointBonusChange: number,
+): NpcUpdate {
     const actor: Record<string, number> = {};
     const items = new Map<string, Record<string, number>>();
     for (const { target, from, to } of changes) {
@@ -43,9 +52,11 @@ export function toUpdate(changes: readonly StatChange<Target>[]): NpcUpdate {
                 actor[`system.skills.${target.slug}.base`] = to;
                 break;
             case "hitPoints":
-                // Shifting current HP with the max keeps the damage the NPC has taken.
                 actor["system.attributes.hp.max"] = to;
-                actor["system.attributes.hp.value"] = Math.max(0, target.current + to - from);
+                actor["system.attributes.hp.value"] = Math.max(
+                    0,
+                    target.current + to - from + hitPointBonusChange,
+                );
                 break;
             case "itemField":
                 items.set(target.itemId, { ...items.get(target.itemId), [target.path]: to });

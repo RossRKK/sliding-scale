@@ -69,6 +69,21 @@ describe("planLevelChange", () => {
             "system.attributes.hp.value": 0,
         });
     });
+
+    it("keeps an elite NPC's damage taken as its elite HP bonus changes with level", () => {
+        const source = npcSource();
+        // Elite at level 3: +15 HP, so 60 is full health on a 45 max.
+        const attributes = { ...source.system.attributes, adjustment: "elite" as const };
+        const elite = {
+            ...source,
+            system: { ...source.system, attributes: { ...attributes, hp: { value: 60, max: 45 } } },
+        };
+        // Level 5: moderate HP 78–72 (75) plus the +20 elite bonus.
+        expect(planLevelChange(readNpc(elite), 5, new Set()).actor).toMatchObject({
+            "system.attributes.hp.max": 75,
+            "system.attributes.hp.value": 95,
+        });
+    });
 });
 
 describe("planAdjectives", () => {

@@ -1,4 +1,5 @@
 import manifest from "../../public/module.json";
+import type { Adjustment } from "../core/elite-weak";
 import type { Stat } from "../core/stats";
 
 export const MODULE_ID = manifest.id;
@@ -15,6 +16,7 @@ export type NpcStat = Stat<Target>;
 /** The build helper's view of an NPC. */
 export interface NpcBuild {
     readonly level: number;
+    readonly adjustment: Adjustment | undefined;
     readonly stats: readonly NpcStat[];
 }
 
@@ -27,6 +29,7 @@ export interface NpcSource {
         readonly attributes: {
             readonly ac: { readonly value: number };
             readonly hp: { readonly value: number; readonly max: number };
+            readonly adjustment: Adjustment | null;
         };
         readonly saves: Readonly<Record<string, { readonly value: number }>>;
         readonly skills: Readonly<Partial<Record<string, { readonly base: number | null }>>>;
@@ -43,6 +46,7 @@ interface ItemSource {
 export function readNpc(source: NpcSource): NpcBuild {
     return {
         level: source.system.details.level.value,
+        adjustment: source.system.attributes.adjustment ?? undefined,
         stats: [...actorStats(source.system), ...source.items.flatMap(itemStats)],
     };
 }

@@ -7,7 +7,7 @@ export function npcSource(): NpcSource {
             details: { level: { value: 3 } },
             abilities: { str: { mod: 4 }, dex: { mod: 3 } },
             perception: { mod: 9 },
-            attributes: { ac: { value: 20 }, hp: { value: 40, max: 45 } },
+            attributes: { ac: { value: 20 }, hp: { value: 40, max: 45 }, adjustment: null },
             saves: { fortitude: { value: 12 }, reflex: { value: 9 }, will: { value: 6 } },
             skills: { athletics: { base: 10 }, stealth: { base: null } },
         },
