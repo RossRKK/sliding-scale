@@ -6,12 +6,13 @@ import {
     damageAverage,
     damageDiceAt,
     formatFormula,
+    rebuildAreaDamage,
     rebuildDamage,
     WEAPON_DIE_SIZES,
 } from "../core/damage";
-import type { StrikeDamage } from "../core/damage";
+import type { PartialChange, StrikeDamage } from "../core/damage";
 import { adjectivesAt, columnValue, rescale } from "../core/scale";
-import { STRIKE_DAMAGE } from "../core/tables";
+import { AREA_DAMAGE, STRIKE_DAMAGE, type ScaleTable } from "../core/tables";
 import { strikeDamageStat } from "./strike-damage";
 
 // The packs directory of a https://github.com/foundryvtt/pf2e clone; too big to vendor here.
@@ -19,15 +20,44 @@ const PACKS_DIR = process.env.PF2E_PACKS_DIR;
 const SYSTEMS = ["pf2e", "sf2e"];
 const LEVELS = Array.from({ length: 26 }, (_, index) => index - 1);
 
+/** How one kind of attack's damage is rated and rebuilt, and which pf2e actions are that kind. */
+interface DamageRating {
+    readonly kind: "strikeDamage" | "areaDamage";
+    readonly actions: readonly string[];
+    readonly table: ScaleTable;
+    readonly rebuild: (
+        damage: StrikeDamage,
+        target: number,
+        fromLevel: number,
+        toLevel: number,
+    ) => PartialChange[] | undefined;
+}
+
+const STRIKES: DamageRating = {
+    kind: "strikeDamage",
+    actions: ["strike"],
+    table: STRIKE_DAMAGE,
+    rebuild: rebuildDamage,
+};
+
+const AREA_ATTACKS: DamageRating = {
+    kind: "areaDamage",
+    actions: ["area-fire", "auto-fire"],
+    table: AREA_DAMAGE,
+    rebuild: rebuildAreaDamage,
+};
+
+/** Packs are only read when PF2E_PACKS_DIR is set; skipIf still collects a suite's body. */
+function packAttacks(rating: DamageRating): PackStrike[] {
+    if (PACKS_DIR === undefined) return [];
+    return SYSTEMS.flatMap((system) => packStrikes(join(PACKS_DIR, system), rating));
+}
+
 describe.skipIf(PACKS_DIR === undefined)(
     "every pack strike rebuilt at every level and adjective",
     { timeout: 60_000 },
     () => {
-        // skipIf still collects this body, so it must not read the packs when there are none.
-        const strikes =
-            PACKS_DIR === undefined
-                ? []
-                : SYSTEMS.flatMap((system) => packStrikes(join(PACKS_DIR, system)));
+        const strikes = packAttacks(STRIKES);
         const rebuilds = strikes.flatMap(rebuildsOf);
 
         it("reads strikes from both systems' packs", () => {
@@ -82,7 +112,45 @@ describe.skipIf(PACKS_DIR === undefined)(
     },
 );
 
+describe.skipIf(PACKS_DIR === undefined)(
+    "every pack area attack rebuilt at every level and adjective",
+    { timeout: 60_000 },
+    () => {
+        const attacks = packAttacks(AREA_ATTACKS);
+        const rebuilds = attacks.flatMap(rebuildsOf);
+
+        it("reads area attacks from the packs", () => {
+            expect(attacks.length).toBeGreaterThan(0);
+        });
+
+        it("keeps the creature's own die and never writes a negative flat modifier", () => {
+            const holds = ({ from, reread }: Rebuild) =>
+                reread !== undefined &&
+                reread.main.dice.size === from.main.dice.size &&
+                reread.main.flat >= 0;
+            expect(violations(rebuilds, holds)).toEqual([]);
+        });
+
+        it("rolls as many dice as fit the target", () => {
+            const holds = (rebuild: Rebuild) => {
+                const count = rebuild.reread?.main.dice.count;
+                const fits = (n: number) => diceOnlyAverage(rebuild, n) <= rebuild.target;
+                return count !== undefined && (count === 1 || fits(count)) && !fits(count + 1);
+            };
+            expect(violations(rebuilds, holds)).toEqual([]);
+        });
+
+        it("averages exactly the target unless a single die already overshoots it", () => {
+            const holds = (rebuild: Rebuild) =>
+                rebuild.reread !== undefined &&
+                (damageAverage(rebuild.reread) === rebuild.target || overshoots(rebuild));
+            expect(violations(rebuilds, holds)).toEqual([]);
+        });
+    },
+);
+
 interface PackStrike {
+    readonly rating: DamageRating;
     readonly system: string;
     readonly name: string;
     readonly level: number;
@@ -109,8 +177,9 @@ function rebuildsOf(strike: PackStrike): Rebuild[] {
         const moved = rebuildAt(strike, strike.damage, strike.level, toLevel);
         if (moved?.reread === undefined) return [];
         const moveTo = moved.reread;
-        const picked = adjectivesAt(STRIKE_DAMAGE, toLevel).flatMap((adjective) => {
-            const target = columnValue(STRIKE_DAMAGE, toLevel, adjective);
+        const { table } = strike.rating;
+        const picked = adjectivesAt(table, toLevel).flatMap((adjective) => {
+            const target = columnValue(table, toLevel, adjective);
             const rebuild =
                 target === undefined
                     ? undefined
@@ -128,7 +197,7 @@ function rebuildAt(
     fromLevel: number,
     toLevel: number,
 ): Rebuild | undefined {
-    const target = rescale(STRIKE_DAMAGE, fromLevel, toLevel, damageAverage(from));
+    const target = rescale(strike.rating.table, fromLevel, toLevel, damageAverage(from));
     return target === undefined ? undefined : rebuildFor(strike, from, fromLevel, toLevel, target);
 }
 
@@ -139,10 +208,10 @@ function rebuildFor(
     toLevel: number,
     target: number,
 ): Rebuild | undefined {
-    const changes = rebuildDamage(from, target, fromLevel, toLevel);
+    const changes = strike.rating.rebuild(from, target, fromLevel, toLevel);
     const formula = changes?.find(({ key }) => key === from.main.key)?.formula;
     if (formula === undefined) return undefined;
-    const reread = rereadWith(strike.item, from, formula);
+    const reread = rereadWith(strike, from, formula);
     return { strike, kind: "levelChange", from, fromLevel, toLevel, target, formula, reread };
 }
 
@@ -178,14 +247,14 @@ function label(rebuild: Rebuild): string {
 }
 
 function rereadWith(
-    item: PackItem,
+    { item, rating }: PackStrike,
     damage: StrikeDamage,
     formula: string,
 ): StrikeDamage | undefined {
     const rolls = item.system.damageRolls;
     const main = rolls[damage.main.key];
     const system = { damageRolls: { ...rolls, [damage.main.key]: { ...main, damage: formula } } };
-    const [stat] = strikeDamageStat("strikeDamage", item._id, system, (read) => read);
+    const [stat] = strikeDamageStat(rating.kind, item._id, system, (read) => read);
     return stat?.target;
 }
 
@@ -196,7 +265,7 @@ function violations(rebuilds: readonly Rebuild[], holds: (rebuild: Rebuild) => b
         .map(label);
 }
 
-function packStrikes(dir: string): PackStrike[] {
+function packStrikes(dir: string, rating: DamageRating): PackStrike[] {
     const system = dir.split("/").at(-1) ?? dir;
     return jsonFiles(dir).flatMap((file) => {
         const npc = JSON.parse(readFileSync(file, "utf8")) as PackNpc;
@@ -204,11 +273,14 @@ function packStrikes(dir: string): PackStrike[] {
         const level = npc.system.details.level.value;
         return (npc.items ?? [])
             .filter(
-                (item) => item.type === "melee" && (item.system.action ?? "strike") === "strike",
+                (item) =>
+                    item.type === "melee" &&
+                    rating.actions.includes(item.system.action ?? "strike"),
             )
             .flatMap((item) =>
-                strikeDamageStat("strikeDamage", item._id, item.system, (damage) => damage).map(
+                strikeDamageStat(rating.kind, item._id, item.system, (damage) => damage).map(
                     ({ target }) => ({
+                        rating,
                         system,
                         name: `${npc.name}: ${item.name}`,
                         level,
