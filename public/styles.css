@@ -53,3 +53,8 @@
 .bcnpc-pause.paused {
     font-weight: bold;
 }
+
+.bcnpc-warning {
+    margin-inline-start: 0.25em;
+    color: var(--color-level-warning, #c87d00);
+}

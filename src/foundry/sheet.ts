@@ -1,5 +1,6 @@
 import type { NPCPF2e } from "@7h3laughingman/pf2e-types";
 import type { Adjective } from "../core/adjective";
+import { diceShare } from "../core/damage";
 import { adjectivesAt, derive, type Rating } from "../core/scale";
 import { TABLE_OF } from "../core/stats";
 import { asNpc, writeUpdate } from "./documents";
@@ -37,6 +38,8 @@ function addAdjectiveControls(
             void setAdjective(npc, stat.id, select.value as Adjective);
         });
         anchor.place(select);
+        const warning = warningFor(stat);
+        if (warning !== undefined) select.after(warningIcon(warning));
     }
 }
 
@@ -61,6 +64,13 @@ function adjectiveSelect(
         select.append(new Option(label, adjective, false, adjective === rating.adjective));
     }
     return select;
+}
+
+function warningIcon(message: string): HTMLElement {
+    const icon = document.createElement("i");
+    icon.className = "bcnpc-warning fa-solid fa-triangle-exclamation";
+    icon.dataset.tooltip = message;
+    return icon;
 }
 
 function ratingLabel({ adjective, offset }: Rating): string {
@@ -90,8 +100,23 @@ function findAnchor(root: HTMLElement, stat: NpcStat): Anchor | undefined {
             const field = `[data-base-property$=".${target.path}"]`;
             return after(root.querySelector(`[data-spellcasting-entry]${item} ${field}`));
         }
+        case "strikeDamage":
+            return inside(
+                root.querySelector(
+                    `[data-item-id="${target.itemId}"][data-strike] .subsection.damage`,
+                ),
+            );
     }
 }
+
+/** Informational only: a tiny weapon die at high level means almost all damage is the flat modifier. */
+function warningFor({ target }: NpcStat): string | undefined {
+    if (target.kind !== "strikeDamage" || diceShare(target.damage.main) >= LOW_DICE_SHARE)
+        return undefined;
+    return "Dice are under a quarter of this strike's damage; consider a bigger weapon die";
+}
+
+const LOW_DICE_SHARE = 0.25;
 
 function after(element: Element | null): Anchor | undefined {
     return element === null ? undefined : { place: (control) => element.after(control) };
