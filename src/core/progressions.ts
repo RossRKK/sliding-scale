@@ -24,7 +24,7 @@ export function progressionAt(bands: readonly Band[], level: number): number | u
     return bands.findLast(({ fromLevel }) => fromLevel <= level)?.value;
 }
 
-/** Scales a count by the progression's growth between two levels, rounded half up, never below one. */
+/** Moves a count by the progression's step between two levels, never below one, so moves reverse. */
 export function scaleByProgression(
     bands: readonly Band[],
     count: number,
@@ -34,5 +34,5 @@ export function scaleByProgression(
     const from = progressionAt(bands, fromLevel);
     const to = progressionAt(bands, toLevel);
     if (from === undefined || to === undefined) return count;
-    return Math.max(1, Math.round((count * to) / from));
+    return Math.max(1, count + to - from);
 }

@@ -48,8 +48,13 @@ describe("scaleByProgression", () => {
         expect(scaleByProgression(BOMB_TIER, 3, 14, 20)).toBe(4);
     });
 
-    it("rounds half up and never goes below one", () => {
-        expect(scaleByProgression(SNEAK_ATTACK_DICE, 3, 11, 5)).toBe(2);
+    it("moves a count by the progression's step, never below one", () => {
+        expect(scaleByProgression(SNEAK_ATTACK_DICE, 4, 5, 11)).toBe(5);
         expect(scaleByProgression(SNEAK_ATTACK_DICE, 1, 17, 1)).toBe(1);
+    });
+
+    it("comes back to the same count unless it hit one on the way", () => {
+        const away = scaleByProgression(SNEAK_ATTACK_DICE, 3, 17, 5);
+        expect(scaleByProgression(SNEAK_ATTACK_DICE, away, 5, 17)).toBe(3);
     });
 });

@@ -176,16 +176,25 @@ describe("side partials", () => {
     it.each([
         ["precision dice follow sneak attack", "precision", "2d6", 9, 13, "3d6"],
         ["precision dice keep their die and flat", "precision", "1d8+1", 4, 5, "2d8+1"],
-        ["precision dice round half up", "precision", "3d6", 11, 5, "2d6"],
+        ["precision dice move by sneak attack's step", "precision", "4d6", 5, 11, "5d6"],
         ["precision dice never drop below one", "precision", "1d6", 17, 1, undefined],
         ["flat precision is left alone", "precision", "2", 1, 20, undefined],
         ["flat splash follows bomb tiers", "splash", "3", 14, 20, "4"],
-        ["flat splash rounds half up", "splash", "1", 2, 3, "2"],
+        ["flat splash moves by the bomb tier's step", "splash", "5", 2, 11, "7"],
         ["flat splash never drops below one", "splash", "1", 20, 1, undefined],
         ["splash dice follow bomb tiers", "splash", "1d4", 2, 11, "3d4"],
         ["persistent damage is never rescaled", "persistent", "1d6", 3, 20, undefined],
     ] as const)("%s", (_case, category, formula, fromLevel, toLevel, expected) => {
         expect(sideAfter(withSide(category, formula), fromLevel, toLevel)).toBe(expected);
+    });
+
+    it.each([
+        ["precision", "3d6", 17, 5],
+        ["splash", "2d6", 3, 17],
+        ["splash", "4", 3, 17],
+    ] as const)("round-trips %s %s from level %i through %i", (category, formula, home, away) => {
+        const there = sideAfter(withSide(category, formula), home, away)!;
+        expect(sideAfter(withSide(category, there), away, home)).toBe(formula);
     });
 
     it("leaves every side partial alone when the level does not change", () => {
