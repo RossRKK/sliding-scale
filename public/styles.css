@@ -1,0 +1,35 @@
+.bcnpc-adjective {
+    width: auto;
+    height: auto;
+    min-height: 0;
+    margin-inline-start: 0.25em;
+    padding: 0 0.25em;
+    font-size: var(--font-size-11, 11px);
+    line-height: 1.4;
+}
+
+/* Narrow slots on pf2e's NPC sheet: put the dropdown on its own full-width line. */
+.sheet.npc .attribute-modifiers .labeled-field:has(> .bcnpc-adjective) {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+}
+
+.sheet.npc .perception.labeled-field:has(> .bcnpc-adjective) {
+    flex-wrap: wrap;
+}
+
+.sheet.npc .saves li:has(> .bcnpc-adjective) {
+    height: auto;
+}
+
+.sheet.npc .attribute-modifiers .bcnpc-adjective,
+.sheet.npc .perception > .bcnpc-adjective,
+.sheet.npc .saves .bcnpc-adjective,
+.sheet.npc .health > .bcnpc-adjective {
+    grid-column: 1 / -1;
+    flex: none;
+    width: 100%;
+    margin: 0;
+    font-size: var(--font-size-10, 10px);
+}

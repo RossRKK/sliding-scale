@@ -9,6 +9,7 @@
         "verified": "14.364"
     },
     "esmodules": ["main.js"],
+    "styles": ["styles.css"],
     "relationships": {
         "systems": [{ "id": "pf2e", "type": "system" }]
     }
