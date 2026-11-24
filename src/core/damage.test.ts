@@ -148,19 +148,29 @@ describe("rescaling strike damage", () => {
 
 describe("rebuilding area damage", () => {
     it.each([
-        ["rolls the table's own expression when it shares the die", "1d8", 9, "2d8"],
-        ["keeps the creature's die, adding only what a die cannot reach", "2d6", 9, "2d6+2"],
-        ["ignores the creature's dice count", "6d10", 14, "2d10+3"],
-        ["keeps one die with no flat when even that overshoots", "3d12", 4, "1d12"],
-    ])("%s", (_case, formula, target, expected) => {
-        expect(rebuildAreaDamage(mainOnly(formula), target, 3, 3)).toEqual([
+        ["keeps its own dice count for a column at the same level", "2d6", 6, 6, 9, "2d6+2"],
+        // Level 6 unlimited is 14, four d6; limited is 25, seven d6.
+        ["moves the count by the columns' dice in its own die", "2d6", 6, 6, 25, "5d6+8"],
+        // Level 3 limited is 14, three d10; unlimited 9 is two, but two d10 overshoot it.
+        ["drops dice that overshoot rather than go negative", "6d10", 3, 3, 9, "1d10+4"],
+        ["keeps one die with no flat when even that overshoots", "3d12", 3, 3, 4, "1d12"],
+    ])("%s", (_case, formula, fromLevel, toLevel, target, expected) => {
+        expect(rebuildAreaDamage(mainOnly(formula), target, fromLevel, toLevel)).toEqual([
             { key: "main", formula: expected },
+        ]);
+    });
+
+    it("round-trips Scavenger Slime's 2d12+10 plasma cannon between levels 9 and 12", () => {
+        // Unlimited +5 at level 9 (18); level 12 unlimited is 23, so 28.
+        const there = rebuildAreaDamage(mainOnly("2d12+10"), 28, 9, 12);
+        expect(there).toEqual([{ key: "main", formula: "3d12+9" }]);
+        expect(rebuildAreaDamage(mainOnly("3d12+9"), 23, 12, 9)).toEqual([
+            { key: "main", formula: "2d12+10" },
         ]);
     });
 
     it("counts extra partials towards the target", () => {
         const damage = { ...mainOnly("2d6"), extras: [parseFormula("1d6")!] };
-        // 3d6 plus 1d6 averages 14, over 12; 2d6 plus 1d6 is 10.
         expect(rebuildAreaDamage(damage, 12, 5, 5)).toEqual([{ key: "main", formula: "2d6+2" }]);
     });
 });

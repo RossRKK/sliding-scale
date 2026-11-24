@@ -48,13 +48,13 @@ describe("area attacks", () => {
         expect(fieldsAfterLevel(freeCaptain(), 3)).toMatchObject({ "system.bonus.value": 8 });
     });
 
-    it("rolls as many of its own dice as fit an adjective's area damage", () => {
-        // Level 6 unlimited is 4d6 (14) and limited 7d6 (25), one more than seven d6 roll.
+    it("moves its own dice by the columns' dice count in its die", () => {
+        // Level 6 unlimited is 14, four d6, and limited 25, seven d6: three more than unlimited.
         expect(fieldsAfterAdjective(freeCaptain(), "unlimited")).toEqual({
-            "system.damageRolls.fire.damage": "4d6",
+            "system.damageRolls.fire.damage": "2d6+7",
         });
         expect(fieldsAfterAdjective(freeCaptain(), "limited")).toEqual({
-            "system.damageRolls.fire.damage": "7d6+1",
+            "system.damageRolls.fire.damage": "5d6+8",
         });
     });
 

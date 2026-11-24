@@ -1,6 +1,7 @@
 import { ADJECTIVES } from "./adjective";
 import { BOMB_TIER, scaleByProgression, SNEAK_ATTACK_DICE, type Band } from "./progressions";
-import { strikeDamageFormulas } from "./tables";
+import { columnValue, derive } from "./scale";
+import { AREA_DAMAGE, strikeDamageFormulas } from "./tables";
 
 export interface Dice {
     readonly count: number;
@@ -70,17 +71,31 @@ export function rebuildDamage(
 }
 
 /**
- * Rewrites an area attack's main partial as the Area Damage table writes its examples: as many of
- * the creature's own dice as fit the target, with a flat modifier only for what a die cannot reach.
+ * Rewrites an area attack's main partial by the strike rule, with the dice count moved by the
+ * change in the Area Damage column's dice, counted in the creature's own die.
  */
 export function rebuildAreaDamage(
     damage: StrikeDamage,
     target: number,
     fromLevel: number,
     toLevel: number,
-): PartialChange[] {
-    const die = exactAverage({ dice: { ...damage.main.dice, count: 1 }, flat: 0 });
-    return rebuildWith(damage, target, Math.floor(target / die) + 1, { fromLevel, toLevel });
+): PartialChange[] | undefined {
+    const fromCount = areaDiceAt(fromLevel, damageAverage(damage), damage.main.dice.size);
+    const toCount = areaDiceAt(toLevel, target, damage.main.dice.size);
+    if (fromCount === undefined || toCount === undefined) return undefined;
+    const wanted = damage.main.dice.count + toCount - fromCount;
+    return rebuildWith(damage, target, wanted, { fromLevel, toLevel });
+}
+
+/**
+ * The dice of a given size the Area Damage column nearest an average rolls at a level. The table's
+ * own examples change die size from level to level, so their counts are not a progression.
+ */
+export function areaDiceAt(level: number, average: number, size: number): number | undefined {
+    const rating = derive(AREA_DAMAGE, level, average);
+    const column = rating && columnValue(AREA_DAMAGE, level, rating.adjective);
+    if (column === undefined) return undefined;
+    return Math.max(1, Math.round(column / exactAverage({ dice: { count: 1, size }, flat: 0 })));
 }
 
 function rebuildWith(

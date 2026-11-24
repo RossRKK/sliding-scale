@@ -6,6 +6,7 @@ import {
     damageAverage,
     damageDiceAt,
     formatFormula,
+    areaDiceAt,
     rebuildAreaDamage,
     rebuildDamage,
     WEAPON_DIE_SIZES,
@@ -31,6 +32,8 @@ interface DamageRating {
         fromLevel: number,
         toLevel: number,
     ) => PartialChange[] | undefined;
+    /** The table's dice count the creature's own count moves with. */
+    readonly diceAt: (level: number, average: number, size: number) => number | undefined;
 }
 
 const STRIKES: DamageRating = {
@@ -38,6 +41,7 @@ const STRIKES: DamageRating = {
     actions: ["strike"],
     table: STRIKE_DAMAGE,
     rebuild: rebuildDamage,
+    diceAt: (level) => damageDiceAt(level),
 };
 
 const AREA_ATTACKS: DamageRating = {
@@ -45,6 +49,7 @@ const AREA_ATTACKS: DamageRating = {
     actions: ["area-fire", "auto-fire"],
     table: AREA_DAMAGE,
     rebuild: rebuildAreaDamage,
+    diceAt: areaDiceAt,
 };
 
 /** Packs are only read when PF2E_PACKS_DIR is set; skipIf still collects a suite's body. */
@@ -78,16 +83,7 @@ describe.skipIf(PACKS_DIR === undefined)(
         });
 
         it("moves the dice count with the band, dropping only dice that overshoot the target", () => {
-            const holds = (rebuild: Rebuild) => {
-                const count = rebuild.reread?.main.dice.count;
-                if (count === undefined) return false;
-                const wanted = Math.max(1, wantedCount(rebuild));
-                const fits = (n: number) => diceOnlyAverage(rebuild, n) <= rebuild.target;
-                return count === 1 || fits(count)
-                    ? count === wanted || (count < wanted && !fits(count + 1))
-                    : false;
-            };
-            expect(violations(rebuilds, holds)).toEqual([]);
+            expect(violations(rebuilds, countFollowsTable)).toEqual([]);
         });
 
         it("averages exactly the target unless a single die already overshoots it", () => {
@@ -131,13 +127,8 @@ describe.skipIf(PACKS_DIR === undefined)(
             expect(violations(rebuilds, holds)).toEqual([]);
         });
 
-        it("rolls as many dice as fit the target", () => {
-            const holds = (rebuild: Rebuild) => {
-                const count = rebuild.reread?.main.dice.count;
-                const fits = (n: number) => diceOnlyAverage(rebuild, n) <= rebuild.target;
-                return count !== undefined && (count === 1 || fits(count)) && !fits(count + 1);
-            };
-            expect(violations(rebuilds, holds)).toEqual([]);
+        it("moves the dice count with the column, dropping only dice that overshoot", () => {
+            expect(violations(rebuilds, countFollowsTable)).toEqual([]);
         });
 
         it("averages exactly the target unless a single die already overshoots it", () => {
@@ -215,8 +206,21 @@ function rebuildFor(
     return { strike, kind: "levelChange", from, fromLevel, toLevel, target, formula, reread };
 }
 
-function wantedCount({ from, fromLevel, toLevel }: Rebuild): number {
-    return from.main.dice.count + (damageDiceAt(toLevel) ?? 0) - (damageDiceAt(fromLevel) ?? 0);
+function countFollowsTable(rebuild: Rebuild): boolean {
+    const count = rebuild.reread?.main.dice.count;
+    if (count === undefined) return false;
+    const wanted = Math.max(1, wantedCount(rebuild));
+    const fits = (n: number) => diceOnlyAverage(rebuild, n) <= rebuild.target;
+    return count === 1 || fits(count)
+        ? count === wanted || (count < wanted && !fits(count + 1))
+        : false;
+}
+
+function wantedCount({ strike, from, fromLevel, toLevel, target }: Rebuild): number {
+    const { diceAt } = strike.rating;
+    const { size } = from.main.dice;
+    const fromCount = diceAt(fromLevel, damageAverage(from), size) ?? 0;
+    return from.main.dice.count + (diceAt(toLevel, target, size) ?? 0) - fromCount;
 }
 
 function diceOnlyAverage({ from }: Rebuild, count: number): number {
