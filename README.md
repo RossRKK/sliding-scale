@@ -5,6 +5,10 @@ module). It reads each NPC stat as an adjective (extreme/high/moderate/low/terri
 plus an offset from the Building Creatures tables, lets you change the adjective on
 the sheet, and rescales every stat when the level changes.
 
+It is off for every NPC until you press **Enable Sliding Scale** on that NPC's sheet.
+Enabling changes no numbers; **Disable Sliding Scale** stops the rescaling and hides the
+adjectives again.
+
 ## One-time setup
 
 Foundry is licensed, so its zip is never downloaded by the build. Download
