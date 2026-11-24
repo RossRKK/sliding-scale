@@ -41,6 +41,10 @@ npm ci
 | `npm run check`           | Type-check with the pf2e and Foundry types      |
 | `npm run lint` / `format` | oxlint, prettier and ruff                       |
 
+Set `PF2E_PACKS_DIR` to the `packs` directory of a
+[pf2e](https://github.com/foundryvtt/pf2e) clone and `npm test` also checks every strike in
+the pf2e and sf2e packs rebuilt at every level and adjective.
+
 ## Running a local Foundry
 
 ```sh
