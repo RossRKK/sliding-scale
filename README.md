@@ -11,6 +11,64 @@ It is off for every NPC until you press **Enable Sliding Scale** on that NPC's s
 Enabling changes no numbers; **Disable Sliding Scale** stops the rescaling and hides the
 adjectives again.
 
+## Known limitations
+
+Sliding Scale stores nothing but the opt-in flag: each stat is re-rated from its current
+number every time. A level change and its reverse therefore do not always return the
+original number. The rates below come from moving every NPC in the pf2e and sf2e packs to
+each level from -1 to 24 and back (the round-trip suite under `PF2E_PACKS_DIR`), first for
+all moves and then for moves of at most 2 levels. Every case would need the number or
+rating from before the move, which is not stored.
+
+**Column hopping.** A stat keeps its adjective and offset, but at the new level the
+number can sit nearer another column, and it comes back by that one. An Animated Army's
+120 HP at level 8 is moderate −15; at level 6 that is 80, which rates low +9, so it
+returns as 110. Max HP 13.0% (7.4% within 2 levels), skills 2.2% (0%), strike damage
+3.4% (0.2%), every other stat 1% or less.
+
+**Ties.** A number exactly between two columns is rated on the higher one, and the other
+reading may have been the right one. A Cavern Troll's Strength +6 at level 6 becomes +5 at
+level 4, a tie there, and stays +5. Attributes 6.8% (5.3%), skills 5.5% (3.7%), strike
+damage 3.3% (5.0%), other stats under 2%.
+
+**One-die floor.** Dice counts never go below one, so a count that would have dropped
+below one comes back higher. An Ailuran's 1d6+6 club at level 5 is 1d6+3 at level 3 and
+2d6+2 back at level 5, the same average. Strike damage 1.7% (2.5%), area damage 2.9%
+(1.0%), precision ability dice 6.2% (2.8%), precision partials 6.0% (0%), splash 1.3%
+(1.1%).
+
+**One die overshoots.** When even one die averages more than the target, the strike
+keeps one die and no flat modifier and reads above its target, so it comes back higher.
+A Chelaxian Cleric's 1d6+2 at level 6 is 1d6 at level 4 and 1d6+3 back. Strike damage
+9.8% (4.7%), area damage 9.3% (16.1%).
+
+**Dropped dice.** Dice that would push the average past the target are dropped rather
+than written with a negative modifier, and they are not added back. A Mindmoppet's 2d12
+at level 5 is 1d12+6 at level 4 and 1d12+7 back. Strike damage 2.1% (1.9%), area damage
+9.8% (15.0%).
+
+**Current HP at zero.** Current HP moves with max HP but not below zero, so damage taken
+past that is forgotten. A Runt with 15 HP left at level 3 has 0 at level 1 and 19 back.
+Current HP 0.3% (0.2%).
+
+Area damage has only 1,250 round trips in the packs (193 within 2 levels), so its rates
+are rough.
+
+Also worth knowing:
+
+- The tables are Starfinder GM Core's. Pathfinder GM Core's differ in the extreme
+  attribute modifier at levels 22 and 23 (+11 rather than +12).
+- Players use their class DC for Area Fire and Auto-Fire. Creatures have no class DC
+  table, so an area attack's DC is rated on the Spell DC table, the table GM Core gives
+  for creatures' ability DCs; GM Core does not say so for Area Fire itself.
+- A column a level lacks, such as an extreme attribute below level 1, is read at the
+  nearest level that has it. Levels above 24 are rated as level 24, so moving between
+  24 and higher levels leaves the numbers unchanged.
+- Damage dice added by rule elements (sneak attack, property runes) are not counted in
+  a strike's average. Lore skills and persistent damage are not scaled.
+- The header's compendium link opens the original stat block, the way to see the
+  numbers before any rescaling.
+
 ## One-time setup
 
 Foundry is licensed, so its zip is never downloaded by the build. Download
