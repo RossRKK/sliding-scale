@@ -122,20 +122,24 @@ describe("planAdjectives", () => {
     });
 });
 
-describe("pausing", () => {
-    it("reads a paused NPC as paused, with no stats to scale", () => {
-        const paused = { ...npcSource(), flags: { [MODULE_ID]: { paused: true } } };
-        expect(readNpc(paused)).toEqual({ state: "paused" });
+describe("enabling", () => {
+    it.each([
+        ["no flags at all", {}],
+        ["no enabled flag", { [MODULE_ID]: {} }],
+        ["enabled set to false", { [MODULE_ID]: { enabled: false } }],
+    ])("reads an NPC with %s as disabled, with no stats to scale", (_case, flags) => {
+        expect(readNpc({ ...npcSource(), flags })).toEqual({ state: "disabled" });
     });
 
-    it("reads an unpaused NPC from whatever numbers it has, with nothing to reconcile", () => {
-        const resumed = { ...npcSource(), flags: { [MODULE_ID]: { paused: false } } };
-        expect(readNpc(resumed)).toEqual(readNpc(npcSource()));
+    it("changes no numbers: an enabled NPC is only read, and its current level plans no updates", () => {
+        const build = activeNpc(npcSource());
+        expect(build.stats.find(({ id }) => id === "armorClass")?.value).toBe(20);
+        expect(planLevelChange(build, build.level, new Set())).toEqual({ actor: {}, items: [] });
     });
 });
 
 function activeNpc(source: NpcSource): ActiveBuild {
     const build = readNpc(source);
-    if (build.state === "paused") throw new Error("fixture NPC is paused");
+    if (build.state === "disabled") throw new Error("fixture NPC is disabled");
     return build;
 }

@@ -1,6 +1,6 @@
-import type { NpcSource } from "./npc";
+import { MODULE_ID, type NpcSource } from "./npc";
 
-/** A level 3 NPC with one stat in every scaled kind, numbers chosen so each sits on a known column. */
+/** An enabled level 3 NPC with one stat in every scaled kind, numbers chosen so each sits on a known column. */
 export function npcSource(): NpcSource {
     return {
         system: {
@@ -11,7 +11,7 @@ export function npcSource(): NpcSource {
             saves: { fortitude: { value: 12 }, reflex: { value: 9 }, will: { value: 6 } },
             skills: { athletics: { base: 10 }, stealth: { base: null } },
         },
-        flags: {},
+        flags: { [MODULE_ID]: { enabled: true } },
         items: [
             {
                 _id: "strike1",

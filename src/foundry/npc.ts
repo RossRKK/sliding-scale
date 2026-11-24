@@ -6,7 +6,7 @@ import { readPrecisionAbilities, type PrecisionAbility } from "./precision-abili
 import { strikeDamageStat } from "./strike-damage";
 
 export const MODULE_ID = manifest.id;
-export const PAUSE_FLAG = "paused";
+export const ENABLED_FLAG = "enabled";
 
 /** Where a scaled number is stored on a pf2e NPC. */
 export type Target =
@@ -18,8 +18,8 @@ export type Target =
 
 export type NpcStat = Stat<Target>;
 
-/** Sliding Scale's view of an NPC; a paused NPC is never scaled, so nothing else is read. */
-export type NpcBuild = { readonly state: "paused" } | ActiveBuild;
+/** Sliding Scale's view of an NPC; a disabled NPC is never scaled, so nothing else is read. */
+export type NpcBuild = { readonly state: "disabled" } | ActiveBuild;
 
 export interface ActiveBuild {
     readonly state: "active";
@@ -55,7 +55,7 @@ interface ItemSource {
 }
 
 export function readNpc(source: NpcSource): NpcBuild {
-    if (isPaused(source)) return { state: "paused" };
+    if (!isEnabled(source)) return { state: "disabled" };
     return {
         state: "active",
         level: source.system.details.level.value,
@@ -65,14 +65,14 @@ export function readNpc(source: NpcSource): NpcBuild {
     };
 }
 
-/** The user's escape hatch for hand-tuning numbers: genuine state, so it is the one stored flag. */
-function isPaused(source: NpcSource): boolean {
+/** Opt-in per NPC, absent meaning off: genuine user state, so it is the one stored flag. */
+function isEnabled(source: NpcSource): boolean {
     const flags = source.flags[MODULE_ID];
     return (
         typeof flags === "object" &&
         flags !== null &&
-        PAUSE_FLAG in flags &&
-        flags[PAUSE_FLAG] === true
+        ENABLED_FLAG in flags &&
+        flags[ENABLED_FLAG] === true
     );
 }
 

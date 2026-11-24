@@ -57,15 +57,15 @@ describe("precision abilities", () => {
 
     it("is rescaled as part of an NPC's level change", () => {
         const build = readNpc(npcSource());
-        if (build.state === "paused") throw new Error("fixture NPC is paused");
+        if (build.state === "disabled") throw new Error("fixture NPC is disabled");
         const items = planLevelChange(build, 5, new Set()).items;
         expect(items.find(({ itemId }) => itemId === "sneak1")?.fields).toHaveProperty(
             "system.rules",
         );
     });
 
-    it("is not read for a paused NPC", () => {
-        const paused = { ...npcSource(), flags: { [MODULE_ID]: { paused: true } } };
-        expect(readNpc(paused)).toEqual({ state: "paused" });
+    it("is not read for a disabled NPC", () => {
+        const disabled = { ...npcSource(), flags: { [MODULE_ID]: { enabled: false } } };
+        expect(readNpc(disabled)).toEqual({ state: "disabled" });
     });
 });

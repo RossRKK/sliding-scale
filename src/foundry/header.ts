@@ -1,9 +1,9 @@
 import type { NPCPF2e } from "@7h3laughingman/pf2e-types";
-import { setPaused } from "./documents";
+import { setEnabled } from "./documents";
 import { MODULE_ID } from "./npc";
 
 interface HeaderState {
-    readonly paused: boolean;
+    readonly enabled: boolean;
     readonly editable: boolean;
 }
 
@@ -11,24 +11,24 @@ interface HeaderState {
 export function addHeaderBar(npc: NPCPF2e, root: HTMLElement, state: HeaderState): void {
     const bar = document.createElement("div");
     bar.className = `${MODULE_ID}-header`;
-    bar.append(pauseToggle(npc, state));
+    bar.append(enableToggle(npc, state));
     const link = sourceLink(npc._stats.compendiumSource);
     if (link !== undefined) bar.append(link);
     root.querySelector(".npc-body > header")?.append(bar);
 }
 
-function pauseToggle(npc: NPCPF2e, { paused, editable }: HeaderState): HTMLButtonElement {
+function enableToggle(npc: NPCPF2e, { enabled, editable }: HeaderState): HTMLButtonElement {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = paused ? `${MODULE_ID}-pause paused` : `${MODULE_ID}-pause`;
+    button.className = enabled ? `${MODULE_ID}-toggle enabled` : `${MODULE_ID}-toggle`;
     button.disabled = !editable;
-    button.innerHTML = paused
-        ? `<i class="fa-solid fa-play"></i> Sliding Scale paused: resume`
-        : `<i class="fa-solid fa-pause"></i> Pause Sliding Scale`;
-    button.dataset.tooltip = paused
-        ? "Adjectives will be re-derived from the current numbers"
-        : "Stop rescaling on level changes and hide the adjective dropdowns";
-    button.addEventListener("click", () => void setPaused(npc, !paused));
+    button.innerHTML = enabled
+        ? `<i class="fa-solid fa-toggle-on"></i> Disable Sliding Scale`
+        : `<i class="fa-solid fa-toggle-off"></i> Enable Sliding Scale`;
+    button.dataset.tooltip = enabled
+        ? "Stop rescaling on level changes and hide the adjective dropdowns"
+        : "Show adjective dropdowns and rescale on level changes; no numbers change";
+    button.addEventListener("click", () => void setEnabled(npc, !enabled));
     return button;
 }
 

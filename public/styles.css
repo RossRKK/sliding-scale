@@ -41,7 +41,7 @@
     font-size: var(--font-size-12, 12px);
 }
 
-.pf2e-sliding-scale-pause {
+.pf2e-sliding-scale-toggle {
     flex: none;
     width: auto;
     height: auto;
@@ -50,7 +50,7 @@
     font-size: inherit;
 }
 
-.pf2e-sliding-scale-pause.paused {
+.pf2e-sliding-scale-toggle.enabled {
     font-weight: bold;
 }
 

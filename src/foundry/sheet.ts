@@ -9,7 +9,7 @@ import { MODULE_ID, readNpc, type ActiveBuild, type NpcStat } from "./npc";
 import { descriptionMayBeStale } from "./precision-abilities";
 import { planAdjectives } from "./updates";
 
-/** Adds the header controls and, unless paused, an adjective dropdown per scaled stat to pf2e's NPC sheet. */
+/** Adds the header controls and, when enabled, an adjective dropdown per scaled stat to pf2e's NPC sheet. */
 export function registerSheetControls(): void {
     Hooks.on("renderNPCSheetPF2e", (sheet: unknown, html: unknown) => {
         const npc = asNpc((sheet as { actor?: unknown }).actor);
@@ -17,8 +17,8 @@ export function registerSheetControls(): void {
         if (npc === undefined || root === undefined) return;
         const build = readNpc(npc._source);
         const editable = isEditable(sheet);
-        addHeaderBar(npc, root, { paused: build.state === "paused", editable });
-        if (build.state === "paused") return;
+        addHeaderBar(npc, root, { enabled: build.state === "active", editable });
+        if (build.state === "disabled") return;
         addAdjectiveControls(npc, build, root, editable);
         addStaleDescriptionHints(build, root);
     });
@@ -58,7 +58,7 @@ function addAdjectiveControls(
 /** Re-reads the source so a change made since the sheet rendered is not overwritten. */
 async function setAdjective(npc: NPCPF2e, statId: string, adjective: Adjective): Promise<void> {
     const build = readNpc(npc._source);
-    if (build.state === "paused") return;
+    if (build.state === "disabled") return;
     await writeUpdate(npc, planAdjectives(build, new Map([[statId, adjective]])));
 }
 

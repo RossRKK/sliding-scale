@@ -29,7 +29,7 @@ function addRescaledStats(
     const newLevel = foundry.utils.getProperty(changed, "system.details.level.value");
     // Source, not prepared, values: prepared ones include elite/weak, conditions and effects.
     const build = readNpc(npc._source);
-    if (build.state === "paused" || typeof newLevel !== "number" || newLevel === build.level) {
+    if (build.state === "disabled" || typeof newLevel !== "number" || newLevel === build.level) {
         return;
     }
     const alreadyChanged = new Set(Object.keys(foundry.utils.flattenObject(changed)));
