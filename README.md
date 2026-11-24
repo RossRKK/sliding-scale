@@ -1,10 +1,11 @@
 # Sliding Scale
 
-A Foundry VTT module for the pf2e system (played with the Starfinder Anachronism
-module) and the standalone Starfinder Second Edition (sf2e) system. It reads each NPC
-stat as an adjective (extreme/high/moderate/low/terrible) plus an offset from the
-Building Creatures tables, lets you change the adjective on the sheet, and rescales
-every stat when the level changes.
+A Foundry VTT module for NPCs in Pathfinder Second Edition (the pf2e system, with or
+without the Starfinder Anachronism module) and Starfinder Second Edition (the
+standalone sf2e system). It reads each NPC stat as an adjective
+(extreme/high/moderate/low/terrible) plus an offset from the Building Creatures tables,
+lets you change the adjective on the sheet, and rescales every stat when the level
+changes.
 
 It is off for every NPC until you press **Enable Sliding Scale** on that NPC's sheet.
 Enabling changes no numbers; **Disable Sliding Scale** stops the rescaling and hides the
