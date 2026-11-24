@@ -12,7 +12,7 @@ import {
     type StrikeDamage,
 } from "./damage";
 import { derive, rescale } from "./scale";
-import { STRIKE_DAMAGE, strikeDamageFormulas } from "./tables";
+import { AREA_DAMAGE, areaDamageFormulas, STRIKE_DAMAGE, strikeDamageFormulas } from "./tables";
 
 const LEVELS = Array.from({ length: 26 }, (_, index) => index - 1);
 
@@ -43,6 +43,40 @@ describe("strike damage table", () => {
             }),
         );
         expect(mismatches).toEqual(ROUNDED_UP);
+    });
+});
+
+describe("area damage table", () => {
+    // Off by more than rounding either way; the listed average is what we use.
+    const OFF_THE_DICE = [
+        "5 unlimited",
+        "7 unlimited",
+        "10 unlimited",
+        "17 unlimited",
+        "18 unlimited",
+    ];
+
+    it("lists each example's average to within rounding, apart from cells whose dice roll something else", () => {
+        const mismatches = LEVELS.flatMap((level) =>
+            (["limited", "unlimited"] as const).flatMap((column) => {
+                const formula = areaDamageFormulas(level)?.[column];
+                if (formula === undefined) return [`${level} ${column} missing`];
+                const { dice } = parseFormula(formula)!;
+                const exact = (dice!.count * (dice!.size + 1)) / 2;
+                const listed = AREA_DAMAGE.get(level)?.[column] ?? NaN;
+                return Math.abs(listed - exact) <= 0.5 ? [] : [`${level} ${column}`];
+            }),
+        );
+        expect(mismatches).toEqual(OFF_THE_DICE);
+    });
+
+    it("writes every example as dice alone", () => {
+        const flats = LEVELS.flatMap((level) =>
+            Object.values(areaDamageFormulas(level) ?? {}).map(
+                (formula) => parseFormula(formula)?.flat,
+            ),
+        );
+        expect(new Set(flats)).toEqual(new Set([0]));
     });
 });
 

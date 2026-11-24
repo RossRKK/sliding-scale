@@ -14,6 +14,7 @@ type DamageRow = readonly [
 
 const EXTREME_TO_LOW = ["extreme", "high", "moderate", "low"] as const;
 const EXTREME_TO_TERRIBLE = ["extreme", "high", "moderate", "low", "terrible"] as const;
+const LIMITED_TO_UNLIMITED = ["limited", "unlimited"] as const;
 
 // GM Core "Attribute Modifier Scales" table, https://2e.aonsrd.com/rules/996-attribute-modifiers
 export const ATTRIBUTE_MODIFIERS = scaleTable(EXTREME_TO_LOW, [
@@ -325,23 +326,74 @@ const STRIKE_DAMAGE_ROWS: readonly DamageRow[] = [
 ];
 
 /** Columns are the book's listed averages; the example formulas are kept for their dice counts. */
-export const STRIKE_DAMAGE: ScaleTable = new Map(
-    STRIKE_DAMAGE_ROWS.map(([level, ...cells]) => [
-        level,
-        columnsOf(
-            EXTREME_TO_LOW,
-            cells.map(([, average]) => average),
-        ),
-    ]),
-);
+export const STRIKE_DAMAGE: ScaleTable = damageTable(EXTREME_TO_LOW, STRIKE_DAMAGE_ROWS);
+
+// Starfinder GM Core "Area Damage" table, https://2e.aonsrd.com/rules/1025-damage-dealing-abilities
+const AREA_DAMAGE_ROWS: readonly DamageRow[] = [
+    [-1, ["1d6", 4], ["1d4", 2]],
+    [0, ["1d10", 6], ["1d6", 4]],
+    [1, ["2d6", 7], ["2d4", 5]],
+    [2, ["3d6", 11], ["2d6", 7]],
+    [3, ["4d6", 14], ["2d8", 9]],
+    [4, ["5d6", 18], ["3d6", 11]],
+    [5, ["6d6", 21], ["2d10", 12]],
+    [6, ["7d6", 25], ["4d6", 14]],
+    [7, ["8d6", 28], ["4d6", 15]],
+    [8, ["9d6", 32], ["5d6", 17]],
+    [9, ["10d6", 35], ["5d6", 18]],
+    [10, ["11d6", 39], ["6d6", 20]],
+    [11, ["12d6", 42], ["6d6", 21]],
+    [12, ["13d6", 46], ["5d8", 23]],
+    [13, ["14d6", 49], ["7d6", 24]],
+    [14, ["15d6", 53], ["4d12", 26]],
+    [15, ["16d6", 56], ["6d8", 27]],
+    [16, ["17d6", 60], ["8d6", 28]],
+    [17, ["18d6", 63], ["8d6", 29]],
+    [18, ["19d6", 67], ["9d6", 30]],
+    [19, ["20d6", 70], ["7d8", 32]],
+    [20, ["21d6", 74], ["6d10", 33]],
+    [21, ["22d6", 77], ["10d6", 35]],
+    [22, ["23d6", 81], ["8d8", 36]],
+    [23, ["24d6", 84], ["11d6", 38]],
+    [24, ["25d6", 88], ["11d6", 39]],
+];
+
+/** Columns are the book's listed averages, which several cells' example dice do not roll. */
+export const AREA_DAMAGE: ScaleTable = damageTable(LIMITED_TO_UNLIMITED, AREA_DAMAGE_ROWS);
+
+export function areaDamageFormulas(
+    level: number,
+): Readonly<Partial<Record<Adjective, string>>> | undefined {
+    return formulasAt(LIMITED_TO_UNLIMITED, AREA_DAMAGE_ROWS, level);
+}
 
 export function strikeDamageFormulas(
     level: number,
 ): Readonly<Partial<Record<Adjective, string>>> | undefined {
-    const row = STRIKE_DAMAGE_ROWS.find(([rowLevel]) => rowLevel === level);
+    return formulasAt(EXTREME_TO_LOW, STRIKE_DAMAGE_ROWS, level);
+}
+
+function damageTable(columns: readonly Adjective[], rows: readonly DamageRow[]): ScaleTable {
+    return new Map(
+        rows.map(([level, ...cells]) => [
+            level,
+            columnsOf(
+                columns,
+                cells.map(([, average]) => average),
+            ),
+        ]),
+    );
+}
+
+function formulasAt(
+    columns: readonly Adjective[],
+    rows: readonly DamageRow[],
+    level: number,
+): Readonly<Partial<Record<Adjective, string>>> | undefined {
+    const row = rows.find(([rowLevel]) => rowLevel === level);
     if (row === undefined) return undefined;
     const [, ...cells] = row;
-    return Object.fromEntries(cells.map(([formula], index) => [EXTREME_TO_LOW[index], formula]));
+    return Object.fromEntries(cells.map(([formula], index) => [columns[index], formula]));
 }
 
 function scaleTable(columns: readonly Adjective[], rows: readonly Row[]): ScaleTable {
