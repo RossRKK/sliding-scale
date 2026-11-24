@@ -13,7 +13,29 @@ export function npcSource(): NpcSource {
         },
         flags: {},
         items: [
-            { _id: "strike1", type: "melee", system: { bonus: { value: 12 } } },
+            {
+                _id: "strike1",
+                type: "melee",
+                system: {
+                    bonus: { value: 12 },
+                    damageRolls: {
+                        main: { damage: "1d8+6", damageType: "slashing", category: null },
+                        fire: { damage: "1d6", damageType: "fire", category: null },
+                        sneak: { damage: "1d6", damageType: "slashing", category: "precision" },
+                        bleed: { damage: "1d4", damageType: "bleed", category: "persistent" },
+                    },
+                },
+            },
+            {
+                _id: "splash1",
+                type: "melee",
+                system: {
+                    bonus: { value: 12 },
+                    damageRolls: {
+                        acid: { damage: "1d6", damageType: "acid", category: "splash" },
+                    },
+                },
+            },
             {
                 _id: "casting1",
                 type: "spellcastingEntry",

@@ -1,6 +1,8 @@
 import manifest from "../../public/module.json";
 import type { Adjustment } from "../core/elite-weak";
+import type { StrikeDamage } from "../core/damage";
 import type { Stat } from "../core/stats";
+import { strikeDamageStat } from "./strike-damage";
 
 export const MODULE_ID = manifest.id;
 export const PAUSE_FLAG = "paused";
@@ -10,7 +12,8 @@ export type Target =
     | { readonly kind: "actorField"; readonly path: string }
     | { readonly kind: "skill"; readonly slug: string }
     | { readonly kind: "hitPoints"; readonly current: number }
-    | { readonly kind: "itemField"; readonly itemId: string; readonly path: string };
+    | { readonly kind: "itemField"; readonly itemId: string; readonly path: string }
+    | { readonly kind: "strikeDamage"; readonly itemId: string; readonly damage: StrikeDamage };
 
 export type NpcStat = Stat<Target>;
 
@@ -123,13 +126,20 @@ const ITEM_FIELDS = {
 function itemStats(item: ItemSource): NpcStat[] {
     const { _id: itemId, type } = item;
     if (itemId === null || !isScaledItemType(type)) return [];
-    return ITEM_FIELDS[type].flatMap(({ kind, path }) => {
+    const fields = ITEM_FIELDS[type].flatMap(({ kind, path }): NpcStat[] => {
         const value = numberAt(item, path);
         if (value === undefined) return [];
         return [
             { id: `${kind}:${itemId}`, kind, value, target: { kind: "itemField", itemId, path } },
         ];
     });
+    if (type !== "melee") return fields;
+    const damageTarget = (damage: StrikeDamage): Target => ({
+        kind: "strikeDamage",
+        itemId,
+        damage,
+    });
+    return [...fields, ...strikeDamageStat(itemId, item.system, damageTarget)];
 }
 
 function isScaledItemType(type: string | undefined): type is keyof typeof ITEM_FIELDS {

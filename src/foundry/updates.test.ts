@@ -17,6 +17,8 @@ describe("readNpc", () => {
             "skill:athletics",
             "hitPoints",
             "strikeAttack:strike1",
+            "strikeDamage:strike1",
+            "strikeAttack:splash1",
             "spellDC:casting1",
             "spellAttack:casting1",
         ]);
@@ -38,7 +40,16 @@ describe("planLevelChange", () => {
                 "system.attributes.hp.value": 55,
             },
             items: [
-                { itemId: "strike1", fields: { "system.bonus.value": 14 } },
+                {
+                    itemId: "strike1",
+                    fields: {
+                        "system.bonus.value": 14,
+                        // 1d8+6 plus 1d6 fire averages 14, extreme −1 at level 3; level 4 extreme is 18.
+                        "system.damageRolls.main.damage": "2d8+5",
+                        "system.damageRolls.sneak.damage": "2d6",
+                    },
+                },
+                { itemId: "splash1", fields: { "system.bonus.value": 14 } },
                 {
                     itemId: "casting1",
                     fields: { "system.spelldc.dc": 21, "system.spelldc.value": 13 },
@@ -96,6 +107,19 @@ describe("planAdjectives", () => {
             actor: { "system.attributes.ac.value": 22 },
             items: [{ itemId: "casting1", fields: { "system.spelldc.dc": 17 } }],
         });
+    });
+
+    it("rebuilds only the main damage partial for a damage adjective at the same level", () => {
+        // Level 3 moderate is 10: 1d8 (4.5) + 1d6 fire (3.5) + 2.
+        const adjectives = new Map([["strikeDamage:strike1", "moderate"] as const]);
+        expect(planAdjectives(activeNpc(npcSource()), adjectives).items).toEqual([
+            { itemId: "strike1", fields: { "system.damageRolls.main.damage": "1d8+2" } },
+        ]);
+    });
+
+    it("leaves a strike with no plain damage partial without a damage stat", () => {
+        const ids = activeNpc(npcSource()).stats.map((stat) => stat.id);
+        expect(ids).not.toContain("strikeDamage:splash1");
     });
 });
 

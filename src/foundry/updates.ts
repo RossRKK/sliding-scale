@@ -1,3 +1,4 @@
+import { rebuildDamage, type PartialChange } from "../core/damage";
 import { applyAdjectives, rescaleStats, type StatChange } from "../core/stats";
 import type { Adjective } from "../core/adjective";
 import { hitPointAdjustment, type Adjustment } from "../core/elite-weak";
@@ -11,7 +12,7 @@ export interface NpcUpdate {
 
 export interface ItemUpdate {
     readonly itemId: string;
-    readonly fields: Readonly<Record<string, number>>;
+    readonly fields: Readonly<Record<string, number | string>>;
 }
 
 /** The levels a set of stat changes moves between; equal for an adjective change. */
@@ -44,7 +45,7 @@ export function planAdjectives(
 
 export function toUpdate(changes: readonly StatChange<Target>[], levels: LevelChange): NpcUpdate {
     const actor: Record<string, number> = {};
-    const items = new Map<string, Record<string, number>>();
+    const items = new Map<string, Record<string, number | string>>();
     for (const { target, from, to } of changes) {
         switch (target.kind) {
             case "actorField":
@@ -65,9 +66,23 @@ export function toUpdate(changes: readonly StatChange<Target>[], levels: LevelCh
             case "itemField":
                 items.set(target.itemId, { ...items.get(target.itemId), [target.path]: to });
                 break;
+            case "strikeDamage":
+                items.set(target.itemId, {
+                    ...items.get(target.itemId),
+                    ...damageFields(rebuildDamage(target.damage, to, levels.from, levels.to)),
+                });
+                break;
         }
     }
     return { actor, items: [...items].map(([itemId, fields]) => ({ itemId, fields })) };
+}
+
+function damageFields(changes: readonly PartialChange[] | undefined): Record<string, string> {
+    const entries = (changes ?? []).map(({ key, formula }) => [
+        `system.damageRolls.${key}.damage`,
+        formula,
+    ]);
+    return Object.fromEntries(entries);
 }
 
 /** Current HP moves with max HP and with the level-dependent elite/weak bonus, so damage taken is kept. */

@@ -29,6 +29,7 @@ export const TABLE_OF = {
     strikeAttack: tables.STRIKE_ATTACK_BONUS,
     spellDC: tables.SPELL_DC,
     spellAttack: tables.SPELL_ATTACK,
+    strikeDamage: tables.STRIKE_DAMAGE,
 } as const satisfies Record<string, ScaleTable>;
 
 export function rescaleStats<Target>(
