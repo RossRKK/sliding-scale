@@ -3,16 +3,18 @@ import type { Adjective } from "../core/adjective";
 import { adjectivesAt, derive, type Rating } from "../core/scale";
 import { TABLE_OF } from "../core/stats";
 import { asNpc, writeUpdate } from "./documents";
+import { addHeaderBar } from "./header";
 import { readNpc, type NpcStat } from "./npc";
 import { planAdjectives } from "./updates";
 
-/** Adds an adjective dropdown beside each scaled stat on pf2e's NPC sheet. */
+/** Adds the compendium link and an adjective dropdown beside each scaled stat to pf2e's NPC sheet. */
 export function registerSheetControls(): void {
     Hooks.on("renderNPCSheetPF2e", (sheet: unknown, html: unknown) => {
         const npc = asNpc((sheet as { actor?: unknown }).actor);
         const root = rootElement(html);
-        if (npc !== undefined && root !== undefined)
-            addAdjectiveControls(npc, root, isEditable(sheet));
+        if (npc === undefined || root === undefined) return;
+        addHeaderBar(npc, root);
+        addAdjectiveControls(npc, root, isEditable(sheet));
     });
 }
 

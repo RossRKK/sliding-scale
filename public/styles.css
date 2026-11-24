@@ -33,3 +33,10 @@
     margin: 0;
     font-size: var(--font-size-10, 10px);
 }
+
+.bcnpc-header {
+    display: flex;
+    gap: 0.75em;
+    align-items: center;
+    font-size: var(--font-size-12, 12px);
+}
