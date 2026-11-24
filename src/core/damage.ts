@@ -52,8 +52,9 @@ export function damageAverage(damage: StrikeDamage): number {
 }
 
 /**
- * Rewrites the main partial to the level's dice count with the creature's own die size, choosing
- * the flat modifier so the new floored average is exactly the target.
+ * Rewrites the main partial with the creature's own die size, its dice count moved by the change in
+ * the table's dice count, and a flat modifier making the floored average the target. Dice are
+ * dropped rather than letting the flat go negative; a single die that still overshoots is kept.
  */
 export function rebuildDamage(
     damage: StrikeDamage,
@@ -64,8 +65,9 @@ export function rebuildDamage(
     const fromCount = damageDiceAt(fromLevel);
     const toCount = damageDiceAt(toLevel);
     if (fromCount === undefined || toCount === undefined) return undefined;
-    const dice = { count: toCount, size: damage.main.dice.size };
-    const flat = target - Math.floor(exactAverage({ dice, flat: 0 }) + extrasAverage(damage));
+    const wanted = damage.main.dice.count + toCount - fromCount;
+    const dice = fittingDice(damage, { count: wanted, size: damage.main.dice.size }, target);
+    const flat = Math.max(0, target - diceAverage(damage, dice));
     const main = { key: damage.main.key, formula: formatFormula({ dice, flat }) };
     const sides = damage.sides.flatMap(({ key, category, formula }) => {
         const scaled = SIDE_SCALING[category](formula, { fromLevel, toLevel });
@@ -137,6 +139,18 @@ function scaleDice(bands: readonly Band[], { dice, flat }: Formula, levels: Leve
 
 function scaleCount(bands: readonly Band[], count: number, { fromLevel, toLevel }: Levels): number {
     return scaleByProgression(bands, count, fromLevel, toLevel);
+}
+
+/** At least one die, and no more than keep the floored average of dice and extras within the target. */
+function fittingDice(damage: StrikeDamage, wanted: WeaponDice, target: number): WeaponDice {
+    let count = Math.max(1, wanted.count);
+    while (count > 1 && diceAverage(damage, { ...wanted, count }) > target) count--;
+    return { ...wanted, count };
+}
+
+/** The floored average of the main partial's dice, without its flat, plus the extras. */
+function diceAverage(damage: StrikeDamage, dice: WeaponDice): number {
+    return Math.floor(exactAverage({ dice, flat: 0 }) + extrasAverage(damage));
 }
 
 function extrasAverage(damage: StrikeDamage): number {

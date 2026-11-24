@@ -2,7 +2,13 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { damageAverage, damageDiceAt, rebuildDamage, WEAPON_DIE_SIZES } from "../core/damage";
+import {
+    damageAverage,
+    damageDiceAt,
+    formatFormula,
+    rebuildDamage,
+    WEAPON_DIE_SIZES,
+} from "../core/damage";
 import type { StrikeDamage } from "../core/damage";
 import { adjectivesAt, columnValue, rescale } from "../core/scale";
 import { STRIKE_DAMAGE } from "../core/tables";
@@ -15,6 +21,7 @@ const LEVELS = Array.from({ length: 26 }, (_, index) => index - 1);
 
 describe.skipIf(PACKS_DIR === undefined)(
     "every pack strike rebuilt at every level and adjective",
+    { timeout: 60_000 },
     () => {
         // skipIf still collects this body, so it must not read the packs when there are none.
         const strikes =
@@ -28,23 +35,49 @@ describe.skipIf(PACKS_DIR === undefined)(
         });
 
         it("keeps the creature's own die size, which is a weapon die", () => {
-            const holds = ({ strike, reread }: Rebuild) =>
+            const holds = ({ from, reread }: Rebuild) =>
                 reread !== undefined &&
-                reread.main.dice.size === strike.damage.main.dice.size &&
+                reread.main.dice.size === from.main.dice.size &&
                 WEAPON_DIE_SIZES.includes(reread.main.dice.size);
             expect(violations(rebuilds, holds)).toEqual([]);
         });
 
-        it("rolls the level band's dice count", () => {
-            const holds = ({ reread, toLevel }: Rebuild) =>
-                reread !== undefined && reread.main.dice.count === damageDiceAt(toLevel);
+        it("never writes a negative flat modifier", () => {
+            const holds = ({ reread }: Rebuild) => reread !== undefined && reread.main.flat >= 0;
             expect(violations(rebuilds, holds)).toEqual([]);
         });
 
-        it("averages exactly the target", () => {
-            const holds = ({ reread, target }: Rebuild) =>
-                reread !== undefined && damageAverage(reread) === target;
+        it("moves the dice count with the band, dropping only dice that overshoot the target", () => {
+            const holds = (rebuild: Rebuild) => {
+                const count = rebuild.reread?.main.dice.count;
+                if (count === undefined) return false;
+                const wanted = Math.max(1, wantedCount(rebuild));
+                const fits = (n: number) => diceOnlyAverage(rebuild, n) <= rebuild.target;
+                return count === 1 || fits(count)
+                    ? count === wanted || (count < wanted && !fits(count + 1))
+                    : false;
+            };
             expect(violations(rebuilds, holds)).toEqual([]);
+        });
+
+        it("averages exactly the target unless a single die already overshoots it", () => {
+            const holds = (rebuild: Rebuild) =>
+                rebuild.reread !== undefined &&
+                (damageAverage(rebuild.reread) === rebuild.target || overshoots(rebuild));
+            expect(violations(rebuilds, holds)).toEqual([]);
+        });
+
+        // The rating can land nearer another column at the far level; that is the tables, not the rebuild.
+        it("restores the original formula after a level round trip that never clamped", () => {
+            const broken = rebuilds.flatMap((away) => {
+                if (away.kind !== "levelChange" || away.reread === undefined) return [];
+                const back = rebuildAt(away.strike, away.reread, away.toLevel, away.strike.level);
+                const original = formatMain(away.strike.damage);
+                if (back === undefined || clamped(away) || clamped(back)) return [];
+                if (back.target !== damageAverage(away.strike.damage)) return [];
+                return back.formula === original ? [] : [`${label(away)} → back ${back.formula}`];
+            });
+            expect(broken.slice(0, 20)).toEqual([]);
         });
     },
 );
@@ -59,6 +92,10 @@ interface PackStrike {
 
 interface Rebuild {
     readonly strike: PackStrike;
+    readonly kind: "levelChange" | "adjective";
+    /** The damage rebuilt from: the pack's for a level change, the rescaled one for an adjective. */
+    readonly from: StrikeDamage;
+    readonly fromLevel: number;
     readonly toLevel: number;
     readonly target: number;
     readonly formula: string;
@@ -68,33 +105,83 @@ interface Rebuild {
 
 /** A level change carrying the strike's rating, then each adjective picked at the new level. */
 function rebuildsOf(strike: PackStrike): Rebuild[] {
-    const { level, damage } = strike;
     return LEVELS.flatMap((toLevel) => {
-        const carried = rescale(STRIKE_DAMAGE, level, toLevel, damageAverage(damage));
-        const picked = adjectivesAt(STRIKE_DAMAGE, toLevel).map((adjective) => ({
-            fromLevel: toLevel,
-            target: columnValue(STRIKE_DAMAGE, toLevel, adjective),
-        }));
-        return [{ fromLevel: level, target: carried }, ...picked].flatMap(
-            ({ fromLevel, target }) => {
-                if (target === undefined) return [];
-                const changes = rebuildDamage(damage, target, fromLevel, toLevel) ?? [];
-                const formula = changes.find(({ key }) => key === damage.main.key)?.formula ?? "";
-                return [
-                    {
-                        strike,
-                        toLevel,
-                        target,
-                        formula,
-                        reread: reread(strike.item, damage, formula),
-                    },
-                ];
-            },
-        );
+        const moved = rebuildAt(strike, strike.damage, strike.level, toLevel);
+        if (moved?.reread === undefined) return [];
+        const moveTo = moved.reread;
+        const picked = adjectivesAt(STRIKE_DAMAGE, toLevel).flatMap((adjective) => {
+            const target = columnValue(STRIKE_DAMAGE, toLevel, adjective);
+            const rebuild =
+                target === undefined
+                    ? undefined
+                    : rebuildFor(strike, moveTo, toLevel, toLevel, target);
+            return rebuild === undefined ? [] : [{ ...rebuild, kind: "adjective" as const }];
+        });
+        return [moved, ...picked];
     });
 }
 
-function reread(item: PackItem, damage: StrikeDamage, formula: string): StrikeDamage | undefined {
+/** A level change, keeping the damage's rating. */
+function rebuildAt(
+    strike: PackStrike,
+    from: StrikeDamage,
+    fromLevel: number,
+    toLevel: number,
+): Rebuild | undefined {
+    const target = rescale(STRIKE_DAMAGE, fromLevel, toLevel, damageAverage(from));
+    return target === undefined ? undefined : rebuildFor(strike, from, fromLevel, toLevel, target);
+}
+
+function rebuildFor(
+    strike: PackStrike,
+    from: StrikeDamage,
+    fromLevel: number,
+    toLevel: number,
+    target: number,
+): Rebuild | undefined {
+    const changes = rebuildDamage(from, target, fromLevel, toLevel);
+    const formula = changes?.find(({ key }) => key === from.main.key)?.formula;
+    if (formula === undefined) return undefined;
+    const reread = rereadWith(strike.item, from, formula);
+    return { strike, kind: "levelChange", from, fromLevel, toLevel, target, formula, reread };
+}
+
+function wantedCount({ from, fromLevel, toLevel }: Rebuild): number {
+    return from.main.dice.count + (damageDiceAt(toLevel) ?? 0) - (damageDiceAt(fromLevel) ?? 0);
+}
+
+function diceOnlyAverage({ from }: Rebuild, count: number): number {
+    return damageAverage({
+        ...from,
+        main: { ...from.main, dice: { ...from.main.dice, count }, flat: 0 },
+    });
+}
+
+function overshoots(rebuild: Rebuild): boolean {
+    const main = rebuild.reread?.main;
+    return (
+        main?.dice.count === 1 && main.flat === 0 && diceOnlyAverage(rebuild, 1) > rebuild.target
+    );
+}
+
+function clamped(rebuild: Rebuild): boolean {
+    return rebuild.reread?.main.dice.count !== wantedCount(rebuild) || overshoots(rebuild);
+}
+
+function formatMain({ main }: StrikeDamage): string {
+    return formatFormula({ dice: main.dice, flat: main.flat });
+}
+
+function label(rebuild: Rebuild): string {
+    const { strike, fromLevel, toLevel, target, formula } = rebuild;
+    return `${strike.name} ${formatMain(rebuild.from)} L${fromLevel}→${toLevel} target ${target}: ${formula}`;
+}
+
+function rereadWith(
+    item: PackItem,
+    damage: StrikeDamage,
+    formula: string,
+): StrikeDamage | undefined {
     const rolls = item.system.damageRolls;
     const main = rolls[damage.main.key];
     const system = { damageRolls: { ...rolls, [damage.main.key]: { ...main, damage: formula } } };
@@ -106,9 +193,7 @@ function violations(rebuilds: readonly Rebuild[], holds: (rebuild: Rebuild) => b
     return rebuilds
         .filter((rebuild) => !holds(rebuild))
         .slice(0, 20)
-        .map(({ strike, toLevel, target, formula }) => {
-            return `${strike.name} L${strike.level}→${toLevel} target ${target}: ${formula}`;
-        });
+        .map(label);
 }
 
 function packStrikes(dir: string): PackStrike[] {

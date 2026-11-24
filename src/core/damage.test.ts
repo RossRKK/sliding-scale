@@ -86,6 +86,26 @@ describe("rescaling strike damage", () => {
         expect(rebuildDamage(damage, 19, 3, 7)).toEqual([{ key: "main", formula: "2d6+9" }]);
     });
 
+    it("moves a creature's own dice count by the table's change in dice count", () => {
+        // 1d8+3 at level 5 (band 2) moved to level 12 (band 3) keeps one die fewer than the band.
+        expect(rebuildDamage(mainOnly("1d8+3"), 22, 5, 12)).toEqual([
+            { key: "main", formula: "2d8+13" },
+        ]);
+    });
+
+    it("drops dice rather than give the flat a negative modifier", () => {
+        // Level 1 low is 4; 2d6 alone averages 7, 1d6 fits with 1 to spare.
+        expect(rebuildDamage(mainOnly("2d6+2"), 4, 1, 1)).toEqual([
+            { key: "main", formula: "1d6+1" },
+        ]);
+    });
+
+    it("keeps one die with no flat when even that overshoots the target", () => {
+        expect(rebuildDamage(mainOnly("1d12+4"), 2, 2, -1)).toEqual([
+            { key: "main", formula: "1d12" },
+        ]);
+    });
+
     it("has nothing to rebuild for a level off the table", () => {
         expect(rebuildDamage(mainOnly("1d8+6"), 10, 3, 25)).toBeUndefined();
     });
