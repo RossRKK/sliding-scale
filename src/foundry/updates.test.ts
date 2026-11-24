@@ -46,7 +46,6 @@ describe("planLevelChange", () => {
                         "system.bonus.value": 14,
                         // 1d8+6 plus 1d6 fire averages 14, extreme −1 at level 3; level 4 extreme is 18.
                         "system.damageRolls.main.damage": "2d8+5",
-                        "system.damageRolls.sneak.damage": "2d6",
                     },
                 },
                 { itemId: "splash1", fields: { "system.bonus.value": 14 } },

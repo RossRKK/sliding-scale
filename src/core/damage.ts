@@ -1,4 +1,5 @@
 import { ADJECTIVES } from "./adjective";
+import { BOMB_TIER, scaleByProgression, SNEAK_ATTACK_DICE, type Band } from "./progressions";
 import { strikeDamageFormulas } from "./tables";
 
 export interface Dice {
@@ -59,7 +60,7 @@ export function rebuildDamage(
     const flat = target - Math.floor(exactAverage({ dice, flat: 0 }) + extrasAverage(damage));
     const main = { key: damage.main.key, formula: formatFormula({ dice, flat }) };
     const sides = damage.sides.flatMap(({ key, category, formula }) => {
-        const scaled = SIDE_SCALING[category](formula, { fromCount, toCount });
+        const scaled = SIDE_SCALING[category](formula, { fromLevel, toLevel });
         const changed = formatFormula(scaled) !== formatFormula(formula);
         return changed ? [{ key, formula: formatFormula(scaled) }] : [];
     });
@@ -99,26 +100,30 @@ export function formatFormula({ dice, flat }: Formula): string {
     return flat === 0 ? base : `${base}${flat > 0 ? "+" : ""}${flat}`;
 }
 
-interface DiceCountChange {
-    readonly fromCount: number;
-    readonly toCount: number;
+interface Levels {
+    readonly fromLevel: number;
+    readonly toLevel: number;
 }
 
-// Provisional: to be replaced by rules derived from Paizo's creature families.
-const SIDE_SCALING: Record<SideCategory, (formula: Formula, change: DiceCountChange) => Formula> = {
-    precision: scaleDiceWithBand,
+// From an analysis of how these partials change across Paizo's creature families in the pf2e and sf2e packs.
+const SIDE_SCALING: Record<SideCategory, (formula: Formula, levels: Levels) => Formula> = {
+    precision: (formula, levels) =>
+        formula.dice === undefined ? formula : scaleDice(SNEAK_ATTACK_DICE, formula, levels),
     persistent: (formula) => formula,
-    splash: (formula) => formula,
+    splash: (formula, levels) =>
+        formula.dice === undefined
+            ? { dice: undefined, flat: scaleCount(BOMB_TIER, formula.flat, levels) }
+            : scaleDice(BOMB_TIER, formula, levels),
 };
 
-/** Dice grow by the same ratio as the main partial's, rounded half up, never below one die. */
-function scaleDiceWithBand(
-    { dice, flat }: Formula,
-    { fromCount, toCount }: DiceCountChange,
-): Formula {
+/** Die size and flat modifier are kept; only the number of dice follows the progression. */
+function scaleDice(bands: readonly Band[], { dice, flat }: Formula, levels: Levels): Formula {
     if (dice === undefined) return { dice, flat };
-    const count = Math.max(1, Math.round((dice.count * toCount) / fromCount));
-    return { dice: { ...dice, count }, flat };
+    return { dice: { ...dice, count: scaleCount(bands, dice.count, levels) }, flat };
+}
+
+function scaleCount(bands: readonly Band[], count: number, { fromLevel, toLevel }: Levels): number {
+    return scaleByProgression(bands, count, fromLevel, toLevel);
 }
 
 function extrasAverage(damage: StrikeDamage): number {

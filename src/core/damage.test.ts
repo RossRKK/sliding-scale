@@ -7,6 +7,7 @@ import {
     formatFormula,
     parseFormula,
     rebuildDamage,
+    type SideCategory,
     type StrikeDamage,
 } from "./damage";
 import { derive, rescale } from "./scale";
@@ -84,50 +85,36 @@ describe("rescaling strike damage", () => {
         expect(rebuildDamage(damage, 19, 3, 7)).toEqual([{ key: "main", formula: "2d6+9" }]);
     });
 
-    it("grows precision dice with the band and keeps their die size and flat modifier", () => {
-        const damage = {
-            ...mainOnly("1d8+6"),
-            sides: [
-                { key: "sneak", category: "precision" as const, formula: parseFormula("1d6")! },
-            ],
-        };
-        expect(rebuildDamage(damage, 17, 3, 7)).toEqual([
-            { key: "main", formula: "2d8+8" },
-            { key: "sneak", formula: "2d6" },
-        ]);
-        expect(rebuildDamage(damage, 25, 3, 12)?.at(1)).toEqual({ key: "sneak", formula: "3d6" });
-    });
-
-    it("rounds precision dice half up and never below one die", () => {
-        const twoDice = {
-            ...mainOnly("2d8+8"),
-            sides: [{ key: "p", category: "precision" as const, formula: parseFormula("2d6")! }],
-        };
-        // 2 × 3/4 = 1.5 rounds to 2: unchanged, so not rewritten.
-        expect(rebuildDamage(twoDice, 40, 19, 12)).toHaveLength(1);
-        const oneDie = {
-            ...mainOnly("4d8+17"),
-            sides: [{ key: "p", category: "precision" as const, formula: parseFormula("1d6")! }],
-        };
-        // 1 × 1/4 rounds to 0, kept at 1: unchanged.
-        expect(rebuildDamage(oneDie, 10, 19, 3)).toHaveLength(1);
-    });
-
     it("has nothing to rebuild for a level off the table", () => {
         expect(rebuildDamage(mainOnly("1d8+6"), 10, 3, 25)).toBeUndefined();
     });
 });
 
-describe("provisional side partial rules", () => {
-    it("leaves persistent and splash partials as they are", () => {
-        const damage = {
-            ...mainOnly("1d8+6"),
-            sides: [
-                { key: "bleed", category: "persistent", formula: parseFormula("1d6")! },
-                { key: "acid", category: "splash", formula: parseFormula("2")! },
-            ],
-        } as const;
-        expect(rebuildDamage(damage, 17, 3, 7)).toEqual([{ key: "main", formula: "2d8+8" }]);
+describe("side partials", () => {
+    const withSide = (category: SideCategory, formula: string): StrikeDamage => ({
+        ...mainOnly("1d8+6"),
+        sides: [{ key: "side", category, formula: parseFormula(formula)! }],
+    });
+    const sideAfter = (damage: StrikeDamage, fromLevel: number, toLevel: number) =>
+        rebuildDamage(damage, 10, fromLevel, toLevel)?.find(({ key }) => key === "side")?.formula;
+
+    it.each([
+        ["precision dice follow sneak attack", "precision", "2d6", 9, 13, "3d6"],
+        ["precision dice keep their die and flat", "precision", "1d8+1", 4, 5, "2d8+1"],
+        ["precision dice round half up", "precision", "3d6", 11, 5, "2d6"],
+        ["precision dice never drop below one", "precision", "1d6", 17, 1, undefined],
+        ["flat precision is left alone", "precision", "2", 1, 20, undefined],
+        ["flat splash follows bomb tiers", "splash", "3", 14, 20, "4"],
+        ["flat splash rounds half up", "splash", "1", 2, 3, "2"],
+        ["flat splash never drops below one", "splash", "1", 20, 1, undefined],
+        ["splash dice follow bomb tiers", "splash", "1d4", 2, 11, "3d4"],
+        ["persistent damage is never rescaled", "persistent", "1d6", 3, 20, undefined],
+    ] as const)("%s", (_case, category, formula, fromLevel, toLevel, expected) => {
+        expect(sideAfter(withSide(category, formula), fromLevel, toLevel)).toBe(expected);
+    });
+
+    it("leaves every side partial alone when the level does not change", () => {
+        expect(sideAfter(withSide("splash", "3"), 14, 14)).toBeUndefined();
     });
 });
 
