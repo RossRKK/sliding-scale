@@ -1,6 +1,6 @@
 {
-    "id": "pf2e-sliding-scale",
-    "title": "PF2e Sliding Scale",
+    "id": "sliding-scale",
+    "title": "Sliding Scale",
     "description": "NPC stat blocks stored as level plus a scale (extreme, high, moderate, low, terrible) and derived at roll time.",
     "version": "0.0.0",
     "authors": [{ "name": "Ross Kelso" }],

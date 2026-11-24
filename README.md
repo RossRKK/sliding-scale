@@ -1,4 +1,4 @@
-# PF2e Sliding Scale
+# Sliding Scale
 
 A Foundry VTT module for the pf2e system (played with the Starfinder Anachronism
 module) and the standalone Starfinder Second Edition (sf2e) system. It reads each NPC
@@ -59,10 +59,10 @@ Manual steps on first start (Foundry stores them in `.foundry-data/`):
 
 1. Open http://localhost:30000, enter your licence key and accept the EULA.
 2. Create a world using the Pathfinder Second Edition system.
-3. Launch it and enable **PF2e Sliding Scale** and **Starfinder Anachronism** under
+3. Launch it and enable **Sliding Scale** and **Starfinder Anachronism** under
    Manage Modules.
 
-An sf2e world needs only **PF2e Sliding Scale** enabled. sf2e is built from the same
+An sf2e world needs only **Sliding Scale** enabled. sf2e is built from the same
 [pf2e repository](https://github.com/foundryvtt/pf2e) with `SYSTEM_ID=sf2e`, so it keeps
 `CONFIG.PF2E`, the `NPCSheetPF2e` sheet and the NPC data model, and the module runs
 unchanged in it.
