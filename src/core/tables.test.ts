@@ -38,7 +38,7 @@ describe("transcription", () => {
         ["STRIKE_ATTACK_BONUS", 7, { extreme: 20, high: 18, moderate: 16, low: 13 }],
         ["STRIKE_DAMAGE", -1, { extreme: 4, high: 3, moderate: 3, low: 2 }],
         ["STRIKE_DAMAGE", 7, { extreme: 25, high: 20, moderate: 17, low: 13 }],
-        ["SPELL_DC", 11,{ extreme: 34, high: 30, moderate: 27 }],
+        ["SPELL_DC", 11, { extreme: 34, high: 30, moderate: 27 }],
         ["SPELL_ATTACK", 11, { extreme: 26, high: 22, moderate: 19 }],
     ] as const)(
         "%s at level %i matches GM Core, ranges at their median",

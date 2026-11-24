@@ -12,13 +12,22 @@ export interface Formula {
     readonly flat: number;
 }
 
-/** A strike's damage as the build helper sees it; persistent and splash partials are not part of it. */
+/** pf2e's damage categories, none of which count toward the damage-per-Strike average. */
+export type SideCategory = "precision" | "persistent" | "splash";
+
+/** A strike's damage as the build helper sees it. */
 export interface StrikeDamage {
     readonly main: { readonly key: string; readonly dice: Dice; readonly flat: number };
     /** Other plain partials (like 1d6 fire): counted in the average, never rewritten. */
     readonly extras: readonly Formula[];
-    /** Not counted in the average, but their dice grow with the main partial's. */
-    readonly precision: readonly { readonly key: string; readonly formula: Formula }[];
+    /** Precision, persistent and splash partials: not counted, scaled by their category's rule. */
+    readonly sides: readonly SidePartial[];
+}
+
+export interface SidePartial {
+    readonly key: string;
+    readonly category: SideCategory;
+    readonly formula: Formula;
 }
 
 export interface PartialChange {
@@ -49,13 +58,12 @@ export function rebuildDamage(
     const dice = { count: toCount, size: damage.main.dice.size };
     const flat = target - Math.floor(exactAverage({ dice, flat: 0 }) + extrasAverage(damage));
     const main = { key: damage.main.key, formula: formatFormula({ dice, flat }) };
-    const precision = damage.precision.flatMap(({ key, formula }) => {
-        const scaled = scalePrecision(formula, toCount / fromCount);
-        return scaled.dice?.count === formula.dice?.count
-            ? []
-            : [{ key, formula: formatFormula(scaled) }];
+    const sides = damage.sides.flatMap(({ key, category, formula }) => {
+        const scaled = SIDE_SCALING[category](formula, { fromCount, toCount });
+        const changed = formatFormula(scaled) !== formatFormula(formula);
+        return changed ? [{ key, formula: formatFormula(scaled) }] : [];
     });
-    return [main, ...precision];
+    return [main, ...sides];
 }
 
 /** How much of the main partial's average comes from its dice, to flag d4-at-level-20 strikes. */
@@ -91,9 +99,26 @@ export function formatFormula({ dice, flat }: Formula): string {
     return flat === 0 ? base : `${base}${flat > 0 ? "+" : ""}${flat}`;
 }
 
-function scalePrecision({ dice, flat }: Formula, ratio: number): Formula {
+interface DiceCountChange {
+    readonly fromCount: number;
+    readonly toCount: number;
+}
+
+// Provisional: to be replaced by rules derived from Paizo's creature families.
+const SIDE_SCALING: Record<SideCategory, (formula: Formula, change: DiceCountChange) => Formula> = {
+    precision: scaleDiceWithBand,
+    persistent: (formula) => formula,
+    splash: (formula) => formula,
+};
+
+/** Dice grow by the same ratio as the main partial's, rounded half up, never below one die. */
+function scaleDiceWithBand(
+    { dice, flat }: Formula,
+    { fromCount, toCount }: DiceCountChange,
+): Formula {
     if (dice === undefined) return { dice, flat };
-    return { dice: { ...dice, count: Math.max(1, Math.round(dice.count * ratio)) }, flat };
+    const count = Math.max(1, Math.round((dice.count * toCount) / fromCount));
+    return { dice: { ...dice, count }, flat };
 }
 
 function extrasAverage(damage: StrikeDamage): number {

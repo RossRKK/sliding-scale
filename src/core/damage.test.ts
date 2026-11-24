@@ -87,7 +87,9 @@ describe("rescaling strike damage", () => {
     it("grows precision dice with the band and keeps their die size and flat modifier", () => {
         const damage = {
             ...mainOnly("1d8+6"),
-            precision: [{ key: "sneak", formula: parseFormula("1d6")! }],
+            sides: [
+                { key: "sneak", category: "precision" as const, formula: parseFormula("1d6")! },
+            ],
         };
         expect(rebuildDamage(damage, 17, 3, 7)).toEqual([
             { key: "main", formula: "2d8+8" },
@@ -99,13 +101,13 @@ describe("rescaling strike damage", () => {
     it("rounds precision dice half up and never below one die", () => {
         const twoDice = {
             ...mainOnly("2d8+8"),
-            precision: [{ key: "p", formula: parseFormula("2d6")! }],
+            sides: [{ key: "p", category: "precision" as const, formula: parseFormula("2d6")! }],
         };
         // 2 × 3/4 = 1.5 rounds to 2: unchanged, so not rewritten.
         expect(rebuildDamage(twoDice, 40, 19, 12)).toHaveLength(1);
         const oneDie = {
             ...mainOnly("4d8+17"),
-            precision: [{ key: "p", formula: parseFormula("1d6")! }],
+            sides: [{ key: "p", category: "precision" as const, formula: parseFormula("1d6")! }],
         };
         // 1 × 1/4 rounds to 0, kept at 1: unchanged.
         expect(rebuildDamage(oneDie, 10, 19, 3)).toHaveLength(1);
@@ -113,6 +115,19 @@ describe("rescaling strike damage", () => {
 
     it("has nothing to rebuild for a level off the table", () => {
         expect(rebuildDamage(mainOnly("1d8+6"), 10, 3, 25)).toBeUndefined();
+    });
+});
+
+describe("provisional side partial rules", () => {
+    it("leaves persistent and splash partials as they are", () => {
+        const damage = {
+            ...mainOnly("1d8+6"),
+            sides: [
+                { key: "bleed", category: "persistent", formula: parseFormula("1d6")! },
+                { key: "acid", category: "splash", formula: parseFormula("2")! },
+            ],
+        } as const;
+        expect(rebuildDamage(damage, 17, 3, 7)).toEqual([{ key: "main", formula: "2d8+8" }]);
     });
 });
 
@@ -125,5 +140,5 @@ describe("diceShare", () => {
 
 function mainOnly(formula: string): StrikeDamage {
     const { dice, flat } = parseFormula(formula)!;
-    return { main: { key: "main", dice: dice!, flat }, extras: [], precision: [] };
+    return { main: { key: "main", dice: dice!, flat }, extras: [], sides: [] };
 }
