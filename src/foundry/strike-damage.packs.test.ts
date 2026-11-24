@@ -1,6 +1,3 @@
-/// <reference types="node" />
-import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
     damageAverage,
@@ -14,11 +11,10 @@ import {
 import type { PartialChange, StrikeDamage } from "../core/damage";
 import { adjectivesOf, columnValue, rescale } from "../core/scale";
 import { AREA_DAMAGE, STRIKE_DAMAGE, type ScaleTable } from "../core/tables";
+import { PACK_SYSTEMS, PACKS_DIR, readPackNpcs } from "./pack-npcs";
 import { strikeDamageStat } from "./strike-damage";
 
-// The packs directory of a https://github.com/foundryvtt/pf2e clone; too big to vendor here.
-const PACKS_DIR = process.env.PF2E_PACKS_DIR;
-const SYSTEMS = ["pf2e", "sf2e"];
+const NPCS = readPackNpcs();
 const LEVELS = Array.from({ length: 26 }, (_, index) => index - 1);
 
 /** How one kind of attack's damage is rated and rebuilt, and which pf2e actions are that kind. */
@@ -52,10 +48,8 @@ const AREA_ATTACKS: DamageRating = {
     diceAt: areaDiceAt,
 };
 
-/** Packs are only read when PF2E_PACKS_DIR is set; skipIf still collects a suite's body. */
 function packAttacks(rating: DamageRating): PackStrike[] {
-    if (PACKS_DIR === undefined) return [];
-    return SYSTEMS.flatMap((system) => packStrikes(join(PACKS_DIR, system), rating));
+    return NPCS.flatMap(({ system, source }) => packStrikes(system, source as PackNpc, rating));
 }
 
 describe.skipIf(PACKS_DIR === undefined)(
@@ -66,7 +60,7 @@ describe.skipIf(PACKS_DIR === undefined)(
         const rebuilds = strikes.flatMap(rebuildsOf);
 
         it("reads strikes from both systems' packs", () => {
-            expect(new Set(strikes.map(({ system }) => system))).toEqual(new Set(SYSTEMS));
+            expect(new Set(strikes.map(({ system }) => system))).toEqual(new Set(PACK_SYSTEMS));
         });
 
         it("keeps the creature's own die size, which is a weapon die", () => {
@@ -269,31 +263,25 @@ function violations(rebuilds: readonly Rebuild[], holds: (rebuild: Rebuild) => b
         .map(label);
 }
 
-function packStrikes(dir: string, rating: DamageRating): PackStrike[] {
-    const system = dir.split("/").at(-1) ?? dir;
-    return jsonFiles(dir).flatMap((file) => {
-        const npc = JSON.parse(readFileSync(file, "utf8")) as PackNpc;
-        if (npc.type !== "npc") return [];
-        const level = npc.system.details.level.value;
-        return (npc.items ?? [])
-            .filter(
-                (item) =>
-                    item.type === "melee" &&
-                    rating.actions.includes(item.system.action ?? "strike"),
-            )
-            .flatMap((item) =>
-                strikeDamageStat(rating.kind, item._id, item.system, (damage) => damage).map(
-                    ({ target }) => ({
-                        rating,
-                        system,
-                        name: `${npc.name}: ${item.name}`,
-                        level,
-                        item,
-                        damage: target,
-                    }),
-                ),
-            );
-    });
+function packStrikes(system: string, npc: PackNpc, rating: DamageRating): PackStrike[] {
+    const level = npc.system.details.level.value;
+    return (npc.items ?? [])
+        .filter(
+            (item) =>
+                item.type === "melee" && rating.actions.includes(item.system.action ?? "strike"),
+        )
+        .flatMap((item) =>
+            strikeDamageStat(rating.kind, item._id, item.system, (damage) => damage).map(
+                ({ target }) => ({
+                    rating,
+                    system,
+                    name: `${npc.name}: ${item.name}`,
+                    level,
+                    item,
+                    damage: target,
+                }),
+            ),
+        );
 }
 
 interface PackNpc {
@@ -311,10 +299,4 @@ interface PackItem {
         readonly action?: string;
         readonly damageRolls: Readonly<Record<string, object>>;
     };
-}
-
-function jsonFiles(dir: string): string[] {
-    return readdirSync(dir, { withFileTypes: true, recursive: true })
-        .filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
-        .map((entry) => join(entry.parentPath, entry.name));
 }
