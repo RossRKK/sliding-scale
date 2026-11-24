@@ -11,6 +11,9 @@
     "esmodules": ["main.js"],
     "styles": ["styles.css"],
     "relationships": {
-        "systems": [{ "id": "pf2e", "type": "system" }]
+        "systems": [
+            { "id": "pf2e", "type": "system" },
+            { "id": "sf2e", "type": "system" }
+        ]
     }
 }
