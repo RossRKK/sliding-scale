@@ -1,7 +1,7 @@
 {
     "id": "sliding-scale",
     "title": "Sliding Scale",
-    "description": "NPC stat blocks stored as level plus a scale (extreme, high, moderate, low, terrible) and derived at roll time.",
+    "description": "Rescales pf2e and sf2e NPC stat blocks when their level changes, reading each stat as a Building Creatures adjective (extreme, high, moderate, low, terrible).",
     "version": "0.0.0",
     "authors": [{ "name": "Ross Kelso" }],
     "url": "https://github.com/RossRKK/sliding-scale",
