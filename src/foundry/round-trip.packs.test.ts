@@ -5,8 +5,10 @@ import {
     damageDiceAt,
     formatFormula,
     parseFormula,
+    weaponDice,
     type StrikeDamage,
 } from "../core/damage";
+import { rescaleDescription } from "../core/description-values";
 import { BOMB_TIER, progressionAt, SNEAK_ATTACK_DICE, type Band } from "../core/progressions";
 import { adjectivesOf, columnValue, derive, rescale } from "../core/scale";
 import { TABLE_OF } from "../core/stats";
@@ -80,7 +82,12 @@ function roundTrips(home: NpcSource): Outcome[] {
         const trip: Trip = { home, start, away, back, awaySource, backSource };
         const stats = statOutcomes(trip);
         const maxHitPoints = stats.find(({ group }) => group === "hitPoints");
-        return [...stats, hitPointOutcome(trip, maxHitPoints), ...sideOutcomes(trip)];
+        return [
+            ...stats,
+            hitPointOutcome(trip, maxHitPoints),
+            ...sideOutcomes(trip),
+            ...descriptionOutcomes(trip),
+        ];
     });
 }
 
@@ -154,6 +161,73 @@ function damageLegCause(
     if (wanted < 1) return "1-die floor";
     if (count < wanted) return "dice clamp";
     return undefined;
+}
+
+/**
+ * Each DC and damage formula an ability's description rescales away, followed back. Values are
+ * paired through the rescale's "from → to" list and classified as the stats they are rated like.
+ */
+function descriptionOutcomes(trip: Trip): Outcome[] {
+    return trip.start.descriptions.flatMap(({ itemId, text }) => {
+        const awayText = trip.away.descriptions.find((d) => d.itemId === itemId)?.text ?? text;
+        const away = rescaleDescription(
+            text,
+            trip.start.level,
+            trip.away.level,
+            precisionOf(trip.start, itemId),
+        );
+        const back = rescaleDescription(
+            awayText,
+            trip.away.level,
+            trip.start.level,
+            precisionOf(trip.away, itemId),
+        );
+        const returned = new Map(back.rescaled.map(pairOf).map(({ from, to }) => [from, to]));
+        return away.rescaled.map(pairOf).map(({ from, to }) => {
+            const end = returned.get(to) ?? to;
+            const cause =
+                end === from
+                    ? undefined
+                    : statCause(trip, valueStat(from), valueStat(to), valueStat(end));
+            const group = from.startsWith("DC") ? "descriptionDC" : "descriptionDamage";
+            return outcome(trip, group, cause, `${itemId} ${from} → ${to} → ${end}`);
+        });
+    });
+}
+
+/** "DC 25 → 32" or "6d6 → 8d6", with the DC prefix restored on both sides. */
+function pairOf(entry: string): { from: string; to: string } {
+    const [from = "", to = ""] = entry.split(" → ");
+    return { from, to: from.startsWith("DC") ? `DC ${to}` : to };
+}
+
+/** A description value as the stat it is rated like: Spell DC, or Area Damage. */
+function valueStat(value: string): NpcStat {
+    if (value.startsWith("DC")) {
+        return {
+            id: value,
+            kind: "areaDC",
+            value: Number(value.slice(3)),
+            target: { kind: "areaDC", itemId: "" },
+        };
+    }
+    const { dice, flat } = parseFormula(value)!;
+    const damage: StrikeDamage = {
+        main: { key: "main", dice: weaponDice(dice!)!, flat },
+        extras: [],
+        sides: [],
+    };
+    return {
+        id: value,
+        kind: "areaDamage",
+        value: damageAverage(damage),
+        target: { kind: "areaDamage", itemId: "", damage },
+    };
+}
+
+function precisionOf(build: ActiveBuild, itemId: string): string[] {
+    const ability = build.precisionAbilities.find((candidate) => candidate.itemId === itemId);
+    return (ability?.dice ?? []).map(({ count, dieSize }) => `${count}${dieSize}`);
 }
 
 /** Current HP follows max HP, so a lost max explains a lost current. */
