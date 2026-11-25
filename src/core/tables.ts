@@ -15,6 +15,7 @@ type DamageRow = readonly [
 const EXTREME_TO_LOW = ["extreme", "high", "moderate", "low"] as const;
 const EXTREME_TO_TERRIBLE = ["extreme", "high", "moderate", "low", "terrible"] as const;
 const LIMITED_TO_UNLIMITED = ["limited", "unlimited"] as const;
+const MAXIMUM_TO_MINIMUM = ["maximum", "minimum"] as const;
 
 // GM Core "Attribute Modifier Scales" table, https://2e.aonsrd.com/rules/996-attribute-modifiers
 export const ATTRIBUTE_MODIFIERS = scaleTable(EXTREME_TO_LOW, [
@@ -360,6 +361,38 @@ const AREA_DAMAGE_ROWS: readonly DamageRow[] = [
 
 /** Columns are the book's listed averages, which several cells' example dice do not roll. */
 export const AREA_DAMAGE: ScaleTable = damageTable(LIMITED_TO_UNLIMITED, AREA_DAMAGE_ROWS);
+
+// GM Core Table 2–8 "Resistances and Weaknesses", identical in Pathfinder
+// (https://2e.aonprd.com/Rules.aspx?ID=2893) and Starfinder
+// (https://2e.aonsrd.com/rules/1008-immunities-weaknesses-and-resistances).
+export const RESISTANCES_AND_WEAKNESSES = scaleTable(MAXIMUM_TO_MINIMUM, [
+    [-1, 1, 1],
+    [0, 3, 1],
+    [1, 3, 2],
+    [2, 5, 2],
+    [3, 6, 3],
+    [4, 7, 4],
+    [5, 8, 4],
+    [6, 9, 5],
+    [7, 10, 5],
+    [8, 11, 6],
+    [9, 12, 6],
+    [10, 13, 7],
+    [11, 14, 7],
+    [12, 15, 8],
+    [13, 16, 8],
+    [14, 17, 9],
+    [15, 18, 9],
+    [16, 19, 9],
+    [17, 19, 10],
+    [18, 20, 10],
+    [19, 21, 11],
+    [20, 22, 11],
+    [21, 23, 12],
+    [22, 24, 12],
+    [23, 25, 13],
+    [24, 26, 13],
+]);
 
 export function areaDamageFormulas(
     level: number,

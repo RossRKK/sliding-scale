@@ -7,8 +7,9 @@ const TABLES = Object.entries(tables).filter(
     (entry): entry is [string, tables.ScaleTable] => entry[1] instanceof Map,
 );
 
-// Book anomalies: level -1 strike damage lists high 1d4+1 and moderate 1d4 both as 3.
-const KNOWN_TIES = new Set(["STRIKE_DAMAGE -1"]);
+// Book anomalies: level -1 strike damage lists high 1d4+1 and moderate 1d4 both as 3,
+// and level -1 resistances and weaknesses are 1 at both ends.
+const KNOWN_TIES = new Set(["STRIKE_DAMAGE -1", "RESISTANCES_AND_WEAKNESSES -1"]);
 
 describe.each(TABLES)("%s", (name, table) => {
     it("covers levels -1 to 24", () => {
@@ -43,6 +44,9 @@ describe("transcription", () => {
         ["AREA_DAMAGE", -1, { limited: 4, unlimited: 2 }],
         ["AREA_DAMAGE", 5, { limited: 21, unlimited: 12 }],
         ["AREA_DAMAGE", 24, { limited: 88, unlimited: 39 }],
+        ["RESISTANCES_AND_WEAKNESSES", 0, { maximum: 3, minimum: 1 }],
+        ["RESISTANCES_AND_WEAKNESSES", 16, { maximum: 19, minimum: 9 }],
+        ["RESISTANCES_AND_WEAKNESSES", 24, { maximum: 26, minimum: 13 }],
     ] as const)(
         "%s at level %i matches GM Core, ranges at their median",
         (name, level, columns) => {
