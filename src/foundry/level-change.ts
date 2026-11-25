@@ -1,6 +1,6 @@
 import type { NPCPF2e } from "@7h3laughingman/pf2e-types";
 import { asNpc, writeItems } from "./documents";
-import { afterLevelChange } from "../core/notes";
+import { afterLevelChange, withDescriptionNote } from "../core/notes";
 import { MODULE_ID, readNpc } from "./npc";
 import { NOTES_FLAG } from "./stored-notes";
 import { planLevelChange, type ItemUpdate } from "./updates";
@@ -36,7 +36,10 @@ function addRescaledStats(
     }
     const alreadyChanged = new Set(Object.keys(foundry.utils.flattenObject(changed)));
     const plan = planLevelChange(build, newLevel, alreadyChanged);
-    const notes = afterLevelChange(build.notes, build.level, newLevel);
+    const notes = withDescriptionNote(
+        afterLevelChange(build.notes, build.level, newLevel),
+        plan.descriptions,
+    );
     foundry.utils.mergeObject(changed, foundry.utils.expandObject(plan.actor));
     foundry.utils.mergeObject(changed, { flags: { [MODULE_ID]: { [NOTES_FLAG]: notes } } });
     // Items are separate documents, so they are written once the actor update has succeeded.

@@ -2,7 +2,9 @@ import { rebuildAreaDamage, rebuildDamage, type PartialChange } from "../core/da
 import { applyAdjectives, rescaleStats, type StatChange } from "../core/stats";
 import type { Adjective } from "../core/adjective";
 import { hitPointAdjustment, type Adjustment } from "../core/elite-weak";
-import { AREA_DC_ABOVE_BONUS, type ActiveBuild, type Target } from "./npc";
+import { rescaleDescription, type DescriptionRescale } from "../core/description-values";
+import type { DescriptionValues } from "../core/notes";
+import { AREA_DC_ABOVE_BONUS, type AbilityDescription, type ActiveBuild, type Target } from "./npc";
 import { rescaleAbility } from "./precision-abilities";
 
 /** Foundry updates for one NPC: the actor's own fields and one entry per changed embedded item. */
@@ -26,21 +28,67 @@ interface LevelChange {
     readonly adjustment: Adjustment | undefined;
 }
 
+/** A level change's writes, and what it did to ability descriptions for a human to check. */
+export interface LevelChangePlan extends NpcUpdate {
+    readonly descriptions: readonly DescriptionValues[];
+}
+
 /** User-entered fields in the same update win over rescaled ones. */
 export function planLevelChange(
     build: ActiveBuild,
     newLevel: number,
     alreadyChanged: ReadonlySet<string>,
-): NpcUpdate {
+): LevelChangePlan {
     const changes = rescaleStats(build.stats, build.level, newLevel);
     const levels = { from: build.level, to: newLevel, adjustment: build.adjustment };
     const { actor, items } = toUpdate(changes, levels);
     const kept = Object.entries(actor).filter(([path]) => !alreadyChanged.has(path));
-    const abilities = build.precisionAbilities.flatMap((ability) => {
-        const fields = rescaleAbility(ability, build.level, newLevel);
+    const descriptions = build.descriptions.map((description) => ({
+        ...description,
+        rescale: rescaleDescription(
+            description.text,
+            build.level,
+            newLevel,
+            precisionFormulas(build, description.itemId),
+        ),
+    }));
+    const abilities = abilityUpdates(build, newLevel, descriptions);
+    return {
+        actor: Object.fromEntries(kept),
+        items: [...items, ...abilities],
+        descriptions: descriptions.flatMap(({ name, rescale: { rescaled, unscaled } }) =>
+            rescaled.length + unscaled.length > 0 ? [{ item: name, rescaled, unscaled }] : [],
+        ),
+    };
+}
+
+/**
+ * The precision rewrite runs on the rescaled description, which never touches its formulas, so an
+ * ability gets one description write with both.
+ */
+function abilityUpdates(
+    build: ActiveBuild,
+    newLevel: number,
+    descriptions: readonly (AbilityDescription & { rescale: DescriptionRescale })[],
+): ItemUpdate[] {
+    const rescaled = new Map(descriptions.map(({ itemId, rescale }) => [itemId, rescale.text]));
+    const precision = build.precisionAbilities.flatMap((ability) => {
+        const description = rescaled.get(ability.itemId) ?? ability.description;
+        const fields = rescaleAbility({ ...ability, description }, build.level, newLevel);
         return fields === undefined ? [] : [{ itemId: ability.itemId, fields }];
     });
-    return { actor: Object.fromEntries(kept), items: [...items, ...abilities] };
+    const written = new Set(precision.map(({ itemId }) => itemId));
+    const text = descriptions.flatMap(({ itemId, text: before, rescale }) =>
+        written.has(itemId) || rescale.text === before
+            ? []
+            : [{ itemId, fields: { "system.description.value": rescale.text } }],
+    );
+    return [...precision, ...text];
+}
+
+function precisionFormulas(build: ActiveBuild, itemId: string): string[] {
+    const ability = build.precisionAbilities.find((candidate) => candidate.itemId === itemId);
+    return (ability?.dice ?? []).map(({ count, dieSize }) => `${count}${dieSize}`);
 }
 
 export function planAdjectives(

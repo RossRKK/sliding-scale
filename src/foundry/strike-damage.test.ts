@@ -45,6 +45,7 @@ function buildWith(level: number, system: object): ActiveBuild {
         stats: strikeDamageStat("strikeDamage", "strike", system, target),
         precisionAbilities: [],
         notes: NO_STORED_NOTES,
+        descriptions: [],
     };
 }
 

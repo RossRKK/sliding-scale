@@ -1,4 +1,9 @@
-import { NO_STORED_NOTES, type EventNote, type StoredNotes } from "../core/notes";
+import {
+    NO_STORED_NOTES,
+    type DescriptionValues,
+    type EventNote,
+    type StoredNotes,
+} from "../core/notes";
 
 export const NOTES_FLAG = "notes";
 
@@ -37,9 +42,22 @@ function readEvent(value: unknown): EventNote[] {
             const count = field(value, "count");
             return typeof count === "number" ? [{ kind, count }] : [];
         }
+        case "descriptionsRescaled": {
+            const items = arrayOf(field(value, "items")).flatMap(readDescriptionValues);
+            return items.length > 0 ? [{ kind, items }] : [];
+        }
         default:
             return [];
     }
+}
+
+function readDescriptionValues(value: unknown): DescriptionValues[] {
+    const item = field(value, "item");
+    const rescaled = strings(field(value, "rescaled"));
+    const unscaled = strings(field(value, "unscaled"));
+    return typeof item === "string" && rescaled !== undefined && unscaled !== undefined
+        ? [{ item, rescaled, unscaled }]
+        : [];
 }
 
 function field(value: unknown, key: string): unknown {

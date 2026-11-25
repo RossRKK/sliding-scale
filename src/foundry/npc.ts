@@ -44,6 +44,14 @@ export interface ActiveBuild {
     /** Not table-rated, so not stats: they only follow level changes. */
     readonly precisionAbilities: readonly PrecisionAbility[];
     readonly notes: StoredNotes;
+    /** Ability descriptions, whose written-in DCs and damage follow level changes. */
+    readonly descriptions: readonly AbilityDescription[];
+}
+
+export interface AbilityDescription {
+    readonly itemId: string;
+    readonly name: string;
+    readonly text: string;
 }
 
 /** The parts of pf2e's NPC source the helper reads; pf2e's NPCSource satisfies it. */
@@ -82,7 +90,15 @@ export function readNpc(source: NpcSource): NpcBuild {
         stats: [...actorStats(source.system), ...source.items.flatMap(itemStats)],
         precisionAbilities: readPrecisionAbilities(source.items),
         notes: readStoredNotes(source.flags[MODULE_ID]),
+        descriptions: source.items.flatMap(abilityDescription),
     };
+}
+
+/** Strikes are left out: their damage is rebuilt from the item's own damage rolls. */
+function abilityDescription({ _id, type, name, system }: ItemSource): AbilityDescription[] {
+    const text = (system as { description?: { value?: unknown } }).description?.value;
+    if (_id === null || type !== "action" || typeof text !== "string" || text === "") return [];
+    return [{ itemId: _id, name: name ?? "Unnamed ability", text }];
 }
 
 /** Opt-in per NPC, absent meaning off: genuine user state, so it is stored. */

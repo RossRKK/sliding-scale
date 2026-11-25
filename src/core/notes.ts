@@ -14,7 +14,15 @@ export type EventNote =
           readonly roadMap: string;
           readonly entries: readonly string[];
       }
-    | { readonly kind: "unassignedSkills"; readonly count: number };
+    | { readonly kind: "unassignedSkills"; readonly count: number }
+    | { readonly kind: "descriptionsRescaled"; readonly items: readonly DescriptionValues[] };
+
+/** One ability's description numbers after a level change. */
+export interface DescriptionValues {
+    readonly item: string;
+    readonly rescaled: readonly string[];
+    readonly unscaled: readonly string[];
+}
 
 export type WarningNote =
     | {
@@ -76,6 +84,16 @@ export function afterLevelChange(stored: StoredNotes, from: number, to: number):
     return { ...stored, events: [...others, ...shift] };
 }
 
+/** Each level change's description note replaces the last, which described older numbers. */
+export function withDescriptionNote(
+    stored: StoredNotes,
+    items: readonly DescriptionValues[],
+): StoredNotes {
+    const others = stored.events.filter(({ kind }) => kind !== "descriptionsRescaled");
+    const note: EventNote[] = items.length > 0 ? [{ kind: "descriptionsRescaled", items }] : [];
+    return { ...stored, events: [...others, ...note] };
+}
+
 export function addEvent(stored: StoredNotes, event: EventNote): StoredNotes {
     const key = noteKey(event);
     const others = stored.events.filter((existing) => noteKey(existing) !== key);
@@ -103,11 +121,27 @@ export function noteText(note: Note): string {
             return `${note.roadMap} road map: not applied, do by hand: ${list(note.entries)}`;
         case "unassignedSkills":
             return `${note.count} "Unassigned Skill" lore ${note.count === 1 ? "skill" : "skills"} added: rename to the skills you want`;
+        case "descriptionsRescaled":
+            return descriptionText(note.items);
         case "lowDiceShare":
             return `${note.itemName} (${note.formula}): dice are under a quarter of its damage; consider a bigger weapon die`;
         case "staleDescription":
             return `${note.itemName}: the description may not match its precision dice (${list(note.formulas)}) any more`;
     }
+}
+
+function descriptionText(items: readonly DescriptionValues[]): string {
+    const part = (label: string, pick: (item: DescriptionValues) => readonly string[]) => {
+        const entries = items.filter((item) => pick(item).length > 0);
+        if (entries.length === 0) return [];
+        return [
+            `${label} ${entries.map((item) => `${item.item}: ${list(pick(item))}`).join("; ")}`,
+        ];
+    };
+    return [
+        ...part("Description numbers rescaled, check them:", ({ rescaled }) => rescaled),
+        ...part("Description numbers not rescaled, do by hand:", ({ unscaled }) => unscaled),
+    ].join(". ");
 }
 
 function list(items: readonly string[]): string {

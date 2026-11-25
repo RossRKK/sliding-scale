@@ -7,6 +7,7 @@ import {
     noteKey,
     noteText,
     visibleNotes,
+    withDescriptionNote,
     type EventNote,
     type WarningNote,
 } from "./notes";
@@ -81,6 +82,21 @@ describe("afterLevelChange", () => {
             skipped,
             { kind: "levelShift", from: 1, to: 20 },
         ]);
+    });
+});
+
+describe("withDescriptionNote", () => {
+    const values = (rescaled: string[]) => [{ item: "Breath Weapon", rescaled, unscaled: [] }];
+
+    it("replaces the last level change's description note", () => {
+        const first = withDescriptionNote(NO_STORED_NOTES, values(["DC 20 → 26"]));
+        expect(withDescriptionNote(first, values(["DC 26 → 30"])).events).toEqual([
+            { kind: "descriptionsRescaled", items: values(["DC 26 → 30"]) },
+        ]);
+    });
+
+    it("adds nothing when no description changed", () => {
+        expect(withDescriptionNote(NO_STORED_NOTES, []).events).toEqual([]);
     });
 });
 

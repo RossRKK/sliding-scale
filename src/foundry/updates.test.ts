@@ -54,6 +54,7 @@ describe("planLevelChange", () => {
                     fields: { "system.spelldc.dc": 21, "system.spelldc.value": 13 },
                 },
             ],
+            descriptions: [],
         });
     });
 
@@ -166,6 +167,60 @@ describe("weaknesses and resistances", () => {
     });
 });
 
+describe("ability descriptions", () => {
+    const breath = {
+        _id: "breath1",
+        name: "Breath Weapon",
+        type: "action",
+        system: {
+            description: {
+                value: "<p>@Damage[4d6[fire]] (@Check[reflex|dc:20|basic]); see DC 20 and DC 20.</p>",
+            },
+        },
+    };
+    const withBreath = (): NpcSource => ({ ...npcSource(), items: [...npcSource().items, breath] });
+
+    it("rescales an ability's fixed DC and damage on a level change", () => {
+        // At level 3 DC 20 is Spell DC high and 4d6 (14) Area Damage limited; level 8: 26 and 32.
+        const plan = planLevelChange(activeNpc(withBreath()), 8, new Set());
+        expect(plan.items.find(({ itemId }) => itemId === "breath1")?.fields).toEqual({
+            "system.description.value":
+                "<p>@Damage[(9d6+1)[fire]] (@Check[reflex|dc:26|basic]); see DC 20 and DC 20.</p>",
+        });
+        expect(plan.descriptions).toEqual([
+            {
+                item: "Breath Weapon",
+                rescaled: ["4d6 → 9d6+1", "DC 20 → 26"],
+                unscaled: ["DC 20 (mentioned more than once)"],
+            },
+        ]);
+    });
+
+    it("writes a precision ability's description once, with both rewrites", () => {
+        const source = npcSource();
+        const items = source.items.map((item) =>
+            item._id === "sneak1"
+                ? {
+                      ...item,
+                      name: "Sneak Attack",
+                      system: {
+                          ...item.system,
+                          description: {
+                              value: "<p>Deals an extra 1d6 precision damage; @Check[will|dc:18].</p>",
+                          },
+                      },
+                  }
+                : item,
+        );
+        const plan = planLevelChange(activeNpc({ ...source, items }), 5, new Set());
+        const writes = plan.items.filter(({ itemId }) => itemId === "sneak1");
+        expect(writes).toHaveLength(1);
+        expect(writes[0]?.fields["system.description.value"]).toBe(
+            "<p>Deals an extra 2d6 precision damage; @Check[will|dc:20].</p>",
+        );
+    });
+});
+
 describe("planAdjectives", () => {
     it("writes the exact column value to wherever the stat lives", () => {
         const adjectives = new Map([
@@ -204,7 +259,11 @@ describe("enabling", () => {
     it("changes no numbers: an enabled NPC is only read, and its current level plans no updates", () => {
         const build = activeNpc(npcSource());
         expect(build.stats.find(({ id }) => id === "armorClass")?.value).toBe(20);
-        expect(planLevelChange(build, build.level, new Set())).toEqual({ actor: {}, items: [] });
+        expect(planLevelChange(build, build.level, new Set())).toEqual({
+            actor: {},
+            items: [],
+            descriptions: [],
+        });
     });
 });
 
