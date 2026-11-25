@@ -14,6 +14,7 @@ export const ENABLED_FLAG = "enabled";
 export type Target =
     | { readonly kind: "actorField"; readonly path: string }
     | { readonly kind: "skill"; readonly slug: string }
+    | { readonly kind: "lore"; readonly itemId: string }
     | { readonly kind: "hitPoints"; readonly current: number }
     | { readonly kind: "itemField"; readonly itemId: string; readonly path: string }
     | { readonly kind: "areaDC"; readonly itemId: string }
@@ -148,6 +149,7 @@ function itemStats(item: ItemSource): NpcStat[] {
     const { _id: itemId, type } = item;
     if (itemId === null) return [];
     if (type === "melee") return attackStats(itemId, item.system);
+    if (type === "lore") return loreStats(itemId, item.system);
     if (!isScaledItemType(type)) return [];
     return ITEM_FIELDS[type].flatMap(({ kind, path }): NpcStat[] => {
         const value = numberAt(item, path);
@@ -156,6 +158,13 @@ function itemStats(item: ItemSource): NpcStat[] {
             { id: `${kind}:${itemId}`, kind, value, target: { kind: "itemField", itemId, path } },
         ];
     });
+}
+
+/** pf2e keeps an NPC's lore skills as items, with the modifier where other skills keep base. */
+function loreStats(itemId: string, system: object): NpcStat[] {
+    const value = numberAt(system, "mod.value");
+    if (value === undefined) return [];
+    return [{ id: `lore:${itemId}`, kind: "skill", value, target: { kind: "lore", itemId } }];
 }
 
 const DAMAGE_KINDS = { strike: "strikeDamage", area: "areaDamage" } as const;

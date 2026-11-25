@@ -32,7 +32,7 @@ function addAdjectiveControls(
     for (const stat of build.stats) {
         const table = TABLE_OF[stat.kind];
         const rating = derive(table, build.level, stat.value);
-        const anchor = findAnchor(root, stat);
+        const anchor = findAnchor(npc, root, stat);
         if (rating === undefined || anchor === undefined) continue;
         const select = adjectiveSelect(adjectivesOf(table), rating, editable);
         select.dataset.statId = stat.id;
@@ -76,13 +76,17 @@ interface Anchor {
 }
 
 /** Where each stat's number is shown on pf2e's NPC sheet template. */
-function findAnchor(root: HTMLElement, stat: NpcStat): Anchor | undefined {
+function findAnchor(npc: NPCPF2e, root: HTMLElement, stat: NpcStat): Anchor | undefined {
     const { target } = stat;
     switch (target.kind) {
         case "actorField":
             return after(root.querySelector(`[data-property="${target.path}"]`));
         case "skill":
             return inside(root.querySelector(`.skill-entry[data-statistic="${target.slug}"]`));
+        case "lore": {
+            const slug = npc.items.get(target.itemId)?.slug;
+            return inside(root.querySelector(`.skill-entry[data-statistic="${slug}"]`));
+        }
         case "hitPoints":
             return after(root.querySelector(".subsection.health > header"));
         case "itemField": {

@@ -69,7 +69,7 @@ Also worth knowing:
   nearest level that has it. Levels above 24 are rated as level 24, so moving between
   24 and higher levels leaves the numbers unchanged.
 - Damage dice added by rule elements (sneak attack, property runes) are not counted in
-  a strike's average. Lore skills and persistent damage are not scaled.
+  a strike's average. Persistent damage is not scaled.
 - The header's compendium link opens the original stat block, the way to see the
   numbers before any rescaling.
 

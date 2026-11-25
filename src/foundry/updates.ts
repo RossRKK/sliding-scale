@@ -73,6 +73,12 @@ export function toUpdate(changes: readonly StatChange<Target>[], levels: LevelCh
             case "itemField":
                 items.set(target.itemId, { ...items.get(target.itemId), [target.path]: to });
                 break;
+            case "lore":
+                items.set(target.itemId, {
+                    ...items.get(target.itemId),
+                    "system.mod.value": to,
+                });
+                break;
             case "areaDC":
                 items.set(target.itemId, {
                     ...items.get(target.itemId),

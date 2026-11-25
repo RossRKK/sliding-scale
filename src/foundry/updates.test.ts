@@ -96,6 +96,29 @@ describe("planLevelChange", () => {
     });
 });
 
+describe("lore skills", () => {
+    const withLore = (): NpcSource => ({
+        ...npcSource(),
+        items: [
+            ...npcSource().items,
+            { _id: "lore1", name: "Sailing Lore", type: "lore", system: { mod: { value: 9 } } },
+        ],
+    });
+
+    it("rates a lore skill on the Skills table like any other skill", () => {
+        const stat = activeNpc(withLore()).stats.find(({ id }) => id === "lore:lore1");
+        expect(stat).toMatchObject({ kind: "skill", value: 9 });
+    });
+
+    it("rescales a lore skill's modifier on its item", () => {
+        // Level 3 moderate skill is 9; level 4 moderate is 10.
+        const items = planLevelChange(activeNpc(withLore()), 4, new Set()).items;
+        expect(items.find(({ itemId }) => itemId === "lore1")?.fields).toEqual({
+            "system.mod.value": 10,
+        });
+    });
+});
+
 describe("planAdjectives", () => {
     it("writes the exact column value to wherever the stat lives", () => {
         const adjectives = new Map([
