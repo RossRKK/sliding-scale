@@ -3,7 +3,7 @@ import {
     damageAverage,
     damageDiceAt,
     formatFormula,
-    areaDiceAt,
+    areaDiceChange,
     rebuildAreaDamage,
     rebuildDamage,
     WEAPON_DIE_SIZES,
@@ -29,7 +29,12 @@ interface DamageRating {
         toLevel: number,
     ) => PartialChange[] | undefined;
     /** The table's dice count the creature's own count moves with. */
-    readonly diceAt: (level: number, average: number, size: number) => number | undefined;
+    readonly diceChange: (
+        damage: StrikeDamage,
+        target: number,
+        fromLevel: number,
+        toLevel: number,
+    ) => number | undefined;
 }
 
 const STRIKES: DamageRating = {
@@ -37,7 +42,8 @@ const STRIKES: DamageRating = {
     actions: ["strike"],
     table: STRIKE_DAMAGE,
     rebuild: rebuildDamage,
-    diceAt: (level) => damageDiceAt(level),
+    diceChange: (_damage, _target, fromLevel, toLevel) =>
+        (damageDiceAt(toLevel) ?? 0) - (damageDiceAt(fromLevel) ?? 0),
 };
 
 const AREA_ATTACKS: DamageRating = {
@@ -45,7 +51,7 @@ const AREA_ATTACKS: DamageRating = {
     actions: ["area-fire", "auto-fire"],
     table: AREA_DAMAGE,
     rebuild: rebuildAreaDamage,
-    diceAt: areaDiceAt,
+    diceChange: areaDiceChange,
 };
 
 function packAttacks(rating: DamageRating): PackStrike[] {
@@ -211,10 +217,7 @@ function countFollowsTable(rebuild: Rebuild): boolean {
 }
 
 function wantedCount({ strike, from, fromLevel, toLevel, target }: Rebuild): number {
-    const { diceAt } = strike.rating;
-    const { size } = from.main.dice;
-    const fromCount = diceAt(fromLevel, damageAverage(from), size) ?? 0;
-    return from.main.dice.count + (diceAt(toLevel, target, size) ?? 0) - fromCount;
+    return from.main.dice.count + (strike.rating.diceChange(from, target, fromLevel, toLevel) ?? 0);
 }
 
 function diceOnlyAverage({ from }: Rebuild, count: number): number {

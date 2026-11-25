@@ -1,4 +1,4 @@
-import { ADJECTIVES } from "./adjective";
+import { ADJECTIVES, type Adjective } from "./adjective";
 import { BOMB_TIER, scaleByProgression, SNEAK_ATTACK_DICE, type Band } from "./progressions";
 import { columnValue, derive } from "./scale";
 import { AREA_DAMAGE, strikeDamageFormulas } from "./tables";
@@ -80,22 +80,40 @@ export function rebuildAreaDamage(
     fromLevel: number,
     toLevel: number,
 ): PartialChange[] | undefined {
-    const fromCount = areaDiceAt(fromLevel, damageAverage(damage), damage.main.dice.size);
-    const toCount = areaDiceAt(toLevel, target, damage.main.dice.size);
-    if (fromCount === undefined || toCount === undefined) return undefined;
-    const wanted = damage.main.dice.count + toCount - fromCount;
+    const change = areaDiceChange(damage, target, fromLevel, toLevel);
+    if (change === undefined) return undefined;
+    const wanted = damage.main.dice.count + change;
     return rebuildWith(damage, target, wanted, { fromLevel, toLevel });
 }
 
 /**
- * The dice of a given size the Area Damage column nearest an average rolls at a level. The table's
- * own examples change die size from level to level, so their counts are not a progression.
+ * How many of its own dice an area attack gains or loses. A level change keeps the column it
+ * rates in, even where its new number sits nearer the other; an adjective change moves to the
+ * chosen column.
  */
-export function areaDiceAt(level: number, average: number, size: number): number | undefined {
-    const rating = derive(AREA_DAMAGE, level, average);
-    const column = rating && columnValue(AREA_DAMAGE, level, rating.adjective);
-    if (column === undefined) return undefined;
-    return Math.max(1, Math.round(column / exactAverage({ dice: { count: 1, size }, flat: 0 })));
+export function areaDiceChange(
+    damage: StrikeDamage,
+    target: number,
+    fromLevel: number,
+    toLevel: number,
+): number | undefined {
+    const from = derive(AREA_DAMAGE, fromLevel, damageAverage(damage))?.adjective;
+    const to = fromLevel === toLevel ? derive(AREA_DAMAGE, toLevel, target)?.adjective : from;
+    if (from === undefined || to === undefined) return undefined;
+    const { size } = damage.main.dice;
+    const toCount = areaDiceAt(toLevel, to, size);
+    const fromCount = areaDiceAt(fromLevel, from, size);
+    return toCount === undefined || fromCount === undefined ? undefined : toCount - fromCount;
+}
+
+/**
+ * The dice of a given size an Area Damage column rolls at a level. The table's own examples
+ * change die size from level to level, so their counts are not a progression.
+ */
+function areaDiceAt(level: number, column: Adjective, size: number): number | undefined {
+    const average = columnValue(AREA_DAMAGE, level, column);
+    if (average === undefined) return undefined;
+    return Math.max(1, Math.round(average / exactAverage({ dice: { count: 1, size }, flat: 0 })));
 }
 
 function rebuildWith(

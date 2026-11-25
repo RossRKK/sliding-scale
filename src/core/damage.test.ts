@@ -162,6 +162,14 @@ describe("rebuilding area damage", () => {
         ]);
     });
 
+    it("keeps the column it rates in when its new number sits nearer the other", () => {
+        // 3d8+10 (23) is unlimited +6 at level 8; at level 6 that is 20, nearer limited's 25.
+        // Unlimited rolls four d8 at level 8 and three at 6, so it drops one die, not gains one.
+        expect(rebuildAreaDamage(mainOnly("3d8+10"), 20, 8, 6)).toEqual([
+            { key: "main", formula: "2d8+11" },
+        ]);
+    });
+
     it("round-trips Scavenger Slime's 2d12+10 plasma cannon between levels 9 and 12", () => {
         // Unlimited +5 at level 9 (18); level 12 unlimited is 23, so 28.
         const there = rebuildAreaDamage(mainOnly("2d12+10"), 28, 9, 12);

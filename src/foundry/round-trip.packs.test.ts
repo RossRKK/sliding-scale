@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-    areaDiceAt,
+    areaDiceChange,
     damageAverage,
     damageDiceAt,
     formatFormula,
@@ -148,12 +148,11 @@ function damageLegCause(
     if (before === undefined || after === undefined) return undefined;
     const target = rescale(table, fromLevel, toLevel, from.value);
     if (target === undefined) return undefined;
-    const diceAt = from.kind === "areaDamage" ? areaDiceAt : (level: number) => damageDiceAt(level);
-    const { size } = before.main.dice;
-    const wanted =
-        before.main.dice.count +
-        (diceAt(toLevel, target, size) ?? 0) -
-        (diceAt(fromLevel, from.value, size) ?? 0);
+    const change =
+        from.kind === "areaDamage"
+            ? areaDiceChange(before, target, fromLevel, toLevel)
+            : (damageDiceAt(toLevel) ?? 0) - (damageDiceAt(fromLevel) ?? 0);
+    const wanted = before.main.dice.count + (change ?? 0);
     const count = after.main.dice.count;
     if (count === 1 && after.main.flat === 0 && damageAverage(after) > target) {
         return "one-die overshoot";
