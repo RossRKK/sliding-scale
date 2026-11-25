@@ -13,7 +13,8 @@ import { TABLE_OF } from "../core/stats";
 import type { ScaleTable } from "../core/tables";
 import { MODULE_ID, readNpc, type ActiveBuild, type NpcSource, type NpcStat } from "./npc";
 import { PACKS_DIR, readPackNpcs } from "./pack-npcs";
-import { planLevelChange, type NpcUpdate } from "./updates";
+import { planLevelChange } from "./updates";
+import { withUpdate } from "./fixtures";
 
 const LEVELS = Array.from({ length: 26 }, (_, index) => index - 1);
 
@@ -66,10 +67,10 @@ function roundTrips(home: NpcSource): Outcome[] {
     const start = readNpc(home);
     if (start.state !== "active") return [];
     return LEVELS.filter((level) => level !== start.level).flatMap((level) => {
-        const awaySource = applied(home, planLevelChange(start, level, new Set()), level);
+        const awaySource = withUpdate(home, planLevelChange(start, level, new Set()), level);
         const away = readNpc(awaySource);
         if (away.state !== "active") return [];
-        const backSource = applied(
+        const backSource = withUpdate(
             awaySource,
             planLevelChange(away, start.level, new Set()),
             start.level,
@@ -263,31 +264,6 @@ function shown(stat: NpcStat | undefined): string {
     if (stat === undefined) return "unread";
     const damage = damageOf(stat);
     return damage === undefined ? String(stat.value) : mainFormula(damage);
-}
-
-/** Applies a planned update to an NPC's source, as Foundry would, at its new level. */
-function applied(source: NpcSource, update: NpcUpdate, level: number): NpcSource {
-    const next = structuredClone(source) as Writable;
-    next.system.details.level.value = level;
-    for (const [path, value] of Object.entries(update.actor)) setPath(next, path, value);
-    for (const { itemId, fields } of update.items) {
-        const item = next.items.find(({ _id }) => _id === itemId);
-        for (const [path, value] of Object.entries(fields)) if (item) setPath(item, path, value);
-    }
-    return next;
-}
-
-type Writable = NpcSource & {
-    system: { details: { level: { value: number } } };
-    items: { _id: string | null; system: object }[];
-};
-
-function setPath(root: object, path: string, value: unknown): void {
-    const keys = path.split(".");
-    const last = keys.pop()!;
-    let node = root as Record<string, unknown>;
-    for (const key of keys) node = (node[key] ??= {}) as Record<string, unknown>;
-    node[last] = value;
 }
 
 function damageRolls(

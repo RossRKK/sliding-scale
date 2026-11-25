@@ -1,4 +1,5 @@
 import { MODULE_ID, type NpcSource } from "./npc";
+import type { NpcUpdate } from "./updates";
 
 /** An enabled level 3 NPC with one stat in every scaled kind, numbers chosen so each sits on a known column. */
 export function npcSource(): NpcSource {
@@ -68,4 +69,29 @@ export function npcSource(): NpcSource {
             },
         ],
     };
+}
+
+/** Applies a planned update to an NPC's source, as Foundry would, at a level. */
+export function withUpdate(source: NpcSource, update: NpcUpdate, level: number): NpcSource {
+    const next = structuredClone(source) as Writable;
+    next.system.details.level.value = level;
+    for (const [path, value] of Object.entries(update.actor)) setPath(next, path, value);
+    for (const { itemId, fields } of update.items) {
+        const item = next.items.find(({ _id }) => _id === itemId);
+        for (const [path, value] of Object.entries(fields)) if (item) setPath(item, path, value);
+    }
+    return next;
+}
+
+type Writable = NpcSource & {
+    system: { details: { level: { value: number } } };
+    items: { _id: string | null; system: object }[];
+};
+
+function setPath(root: object, path: string, value: unknown): void {
+    const keys = path.split(".");
+    const last = keys.pop()!;
+    let node = root as Record<string, unknown>;
+    for (const key of keys) node = (node[key] ??= {}) as Record<string, unknown>;
+    node[last] = value;
 }
