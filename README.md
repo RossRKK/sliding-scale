@@ -20,6 +20,10 @@ missing named skills are added, and it can add a melee and a ranged Strike.
 Abilities give the NPC's traits, valued from the Resistances and Weaknesses table, where
 the NPC does not already have that type. It does not change HP; a note reminds you to.
 
+A level change also rescales the DCs and damage written into an enabled NPC's ability
+descriptions (`@Check` DCs, `@Damage` and `[[/r]]` rolls, and plain "DC 25" or "2d6 fire
+damage" mentioned once) and leaves a note saying what changed and what it could not do.
+
 An enabled NPC's sheet lists **Sliding Scale notes**: things to check by hand, such as a
 large level change or a strike whose dice are a small part of its damage. The tick
 acknowledges a note; a warning comes back only if its cause changes.
@@ -81,6 +85,16 @@ Current HP 0.3% (0.2%).
 
 Area damage has only 1,250 round trips in the packs (193 within 2 levels), so its rates
 are rough.
+
+**Description numbers.** A DC or damage roll in an ability's description has no table of
+its own, so Sliding Scale guesses one from the value: DCs are rated on Spell DC and damage
+on the nearer Area Damage column. Damage written well below that column often loses dice
+it does not get back: an Apprentice Magician Clique's 5d4 at level 5 is 3d4+2 at level 3
+and 4d4+2 back. DCs are lost in 0.7% of round trips (0.7% within 2 levels), all column
+hopping or ties; damage in 34.2% (27.6%), mostly dropped dice (17.9%) and one die
+overshooting (11.8%). Values that follow the actor, flat checks, recharge rolls and
+durations are never touched; values mentioned more than once, flat or odd-die damage and
+persistent damage are listed in the note instead.
 
 Also worth knowing:
 
