@@ -18,10 +18,20 @@ export type Target =
     | { readonly kind: "hitPoints"; readonly current: number }
     | { readonly kind: "itemField"; readonly itemId: string; readonly path: string }
     | { readonly kind: "areaDC"; readonly itemId: string }
+    | {
+          readonly kind: "iwr";
+          readonly list: IwrList;
+          readonly type: string;
+          readonly index: number;
+          /** The whole list, which Foundry replaces wholesale. */
+          readonly entries: readonly unknown[];
+      }
     | { readonly kind: "strikeDamage"; readonly itemId: string; readonly damage: StrikeDamage }
     | { readonly kind: "areaDamage"; readonly itemId: string; readonly damage: StrikeDamage };
 
 export type NpcStat = Stat<Target>;
+
+export type IwrList = "weaknesses" | "resistances";
 
 /** Sliding Scale's view of an NPC; a disabled NPC is never scaled, so nothing else is read. */
 export type NpcBuild = { readonly state: "disabled" } | ActiveBuild;
@@ -46,6 +56,8 @@ export interface NpcSource {
             readonly ac: { readonly value: number };
             readonly hp: { readonly value: number; readonly max: number };
             readonly adjustment: Adjustment | null;
+            readonly weaknesses?: readonly unknown[] | null | undefined;
+            readonly resistances?: readonly unknown[] | null | undefined;
         };
         readonly saves: Readonly<Record<string, { readonly value: number }>>;
         readonly skills: Readonly<Partial<Record<string, { readonly base: number | null }>>>;
@@ -102,6 +114,8 @@ function actorStats(system: NpcSource["system"]): NpcStat[] {
             field(`save:${key}`, "save", `system.saves.${key}.value`, value),
         ),
         ...skillStats(system.skills),
+        ...iwrStats("weaknesses", "weakness", attributes.weaknesses),
+        ...iwrStats("resistances", "resistance", attributes.resistances),
         {
             id: "hitPoints",
             kind: "hitPoints",
@@ -109,6 +123,29 @@ function actorStats(system: NpcSource["system"]): NpcStat[] {
             target: { kind: "hitPoints", current: attributes.hp.value },
         },
     ];
+}
+
+/** One stat per type with a number; pf2e stores null for an NPC with none. */
+function iwrStats(
+    list: IwrList,
+    kind: "weakness" | "resistance",
+    entries: readonly unknown[] | null | undefined,
+): NpcStat[] {
+    const all = entries ?? [];
+    const seen = new Set<string>();
+    return all.flatMap((entry, index): NpcStat[] => {
+        const { type, value } = (entry ?? {}) as { type?: unknown; value?: unknown };
+        if (typeof type !== "string" || typeof value !== "number" || seen.has(type)) return [];
+        seen.add(type);
+        return [
+            {
+                id: `${kind}:${type}`,
+                kind,
+                value,
+                target: { kind: "iwr", list, type, index, entries: all },
+            },
+        ];
+    });
 }
 
 /** A null base defers to the attribute modifier, i.e. the NPC lacks the skill, so it is not scaled. */

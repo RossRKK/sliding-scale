@@ -97,6 +97,10 @@ function findAnchor(npc: NPCPF2e, root: HTMLElement, stat: NpcStat): Anchor | un
             const field = `[data-base-property$=".${target.path}"]`;
             return after(root.querySelector(`[data-spellcasting-entry]${item} ${field}`));
         }
+        case "iwr": {
+            const attribute = target.list === "weaknesses" ? "weakness" : "resistance";
+            return inside(root.querySelector(`li[data-${attribute}="${target.type}"]`));
+        }
         case "areaDC":
             return inside(
                 root.querySelector(

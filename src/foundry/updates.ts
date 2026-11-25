@@ -7,7 +7,8 @@ import { rescaleAbility } from "./precision-abilities";
 
 /** Foundry updates for one NPC: the actor's own fields and one entry per changed embedded item. */
 export interface NpcUpdate {
-    readonly actor: Readonly<Record<string, number>>;
+    /** Numbers, and IWR lists, which Foundry only writes whole. */
+    readonly actor: Readonly<Record<string, number | readonly unknown[]>>;
     readonly items: readonly ItemUpdate[];
 }
 
@@ -51,7 +52,7 @@ export function planAdjectives(
 }
 
 export function toUpdate(changes: readonly StatChange<Target>[], levels: LevelChange): NpcUpdate {
-    const actor: Record<string, number> = {};
+    const actor: Record<string, number | readonly unknown[]> = {};
     const items = new Map<string, Record<string, ItemFieldValue>>();
     for (const { target, from, to } of changes) {
         switch (target.kind) {
@@ -70,6 +71,16 @@ export function toUpdate(changes: readonly StatChange<Target>[], levels: LevelCh
                     levels,
                 );
                 break;
+            case "iwr": {
+                const path = `system.attributes.${target.list}`;
+                const entries = actor[path] ?? target.entries;
+                actor[path] = withValue(
+                    Array.isArray(entries) ? entries : target.entries,
+                    target.index,
+                    to,
+                );
+                break;
+            }
             case "itemField":
                 items.set(target.itemId, { ...items.get(target.itemId), [target.path]: to });
                 break;
@@ -108,6 +119,10 @@ function damageFields(changes: readonly PartialChange[] | undefined): Record<str
         formula,
     ]);
     return Object.fromEntries(entries);
+}
+
+function withValue(entries: readonly unknown[], index: number, value: number): unknown[] {
+    return entries.map((entry, at) => (at === index ? { ...(entry as object), value } : entry));
 }
 
 /** Current HP moves with max HP and with the level-dependent elite/weak bonus, so damage taken is kept. */

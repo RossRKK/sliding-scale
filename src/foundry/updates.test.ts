@@ -119,6 +119,53 @@ describe("lore skills", () => {
     });
 });
 
+describe("weaknesses and resistances", () => {
+    // Level 3 Table 2–8: maximum 6, minimum 3; level 8: maximum 11, minimum 6.
+    const withIwr = (): NpcSource => {
+        const source = npcSource();
+        const attributes = {
+            ...source.system.attributes,
+            weaknesses: [{ type: "cold", value: 6 }],
+            resistances: [
+                { type: "physical", value: 3, exceptions: ["silver"] },
+                { type: "fire", value: 7 },
+            ],
+        };
+        return { ...source, system: { ...source.system, attributes } };
+    };
+
+    it("rates each typed value on Table 2–8", () => {
+        const ids = activeNpc(withIwr())
+            .stats.filter(({ kind }) => kind === "weakness" || kind === "resistance")
+            .map(({ id, value }) => [id, value]);
+        expect(ids).toEqual([
+            ["weakness:cold", 6],
+            ["resistance:physical", 3],
+            ["resistance:fire", 7],
+        ]);
+    });
+
+    it("rewrites each list whole, keeping exceptions, with every value rescaled", () => {
+        expect(planLevelChange(activeNpc(withIwr()), 8, new Set()).actor).toMatchObject({
+            "system.attributes.weaknesses": [{ type: "cold", value: 11 }],
+            "system.attributes.resistances": [
+                { type: "physical", value: 6, exceptions: ["silver"] },
+                { type: "fire", value: 12 },
+            ],
+        });
+    });
+
+    it("sets one value to a column, leaving the rest of its list alone", () => {
+        const adjectives = new Map([["resistance:fire", "minimum"] as const]);
+        expect(planAdjectives(activeNpc(withIwr()), adjectives).actor).toEqual({
+            "system.attributes.resistances": [
+                { type: "physical", value: 3, exceptions: ["silver"] },
+                { type: "fire", value: 3 },
+            ],
+        });
+    });
+});
+
 describe("planAdjectives", () => {
     it("writes the exact column value to wherever the stat lives", () => {
         const adjectives = new Map([
