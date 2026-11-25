@@ -142,6 +142,17 @@ describe("applyRoadMap", () => {
         ]);
     });
 
+    it("drops the unassigned skills note when a road map replaces them with none", () => {
+        const oracle = applyRoadMap(
+            activeNpc(npcSource()),
+            roadMap("pathfinder", "oracle"),
+            CONTEXT,
+        );
+        const npc = { ...activeNpc(npcSource()), notes: oracle.notes };
+        const { notes } = applyRoadMap(npc, brute, CONTEXT);
+        expect(notes.events.map(({ kind }) => kind)).toEqual([]);
+    });
+
     it("leaves the spellcasting attribute to a human when the NPC has no spellcasting", () => {
         const spellcaster = roadMap("pathfinder", "spellcaster");
         const none = { ...CONTEXT, spellcastingAttribute: undefined };

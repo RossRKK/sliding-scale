@@ -217,11 +217,16 @@ function isCoreKind(kind: NpcStat["kind"]): boolean {
     return (CORE_KINDS as readonly string[]).includes(kind);
 }
 
+/** Unassigned skills are replaced on every application, so their note says what is there now. */
 function notesAfter(notes: StoredNotes, roadMap: RoadMap, plan: RoadMapPlan): StoredNotes {
+    const withoutUnassigned = {
+        ...notes,
+        events: notes.events.filter(({ kind }) => kind !== "unassignedSkills"),
+    };
     const skipped =
         plan.byHand.length === 0
-            ? notes
-            : addEvent(notes, {
+            ? withoutUnassigned
+            : addEvent(withoutUnassigned, {
                   kind: "roadMapSkipped",
                   roadMap: roadMap.name,
                   entries: plan.byHand,
