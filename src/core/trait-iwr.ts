@@ -46,7 +46,7 @@ export const TRAIT_IWR: Readonly<Record<string, readonly TraitIwr[]>> = {
     azata: [weakness("cold-iron")],
     celestial: [weakness("unholy")],
     cold: [immunity("cold")], // "Immunities or Resistances cold" → immunity
-    // Starfinder: "usually immune to cold … resistance to cold or void" → void, as cold is immune
+    // Starfinder: "Immunities usually cold; Resistances cold or void" → void, as cold is immune
     cosmic: [optional(immunity("cold")), { kind: "resistance", type: "void", breadth: "single" }],
     daemon: [immunity("death-effects")],
     demon: [weakness("cold-iron")],

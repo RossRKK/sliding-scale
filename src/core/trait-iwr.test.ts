@@ -80,6 +80,16 @@ describe("traitIwrToAdd", () => {
         expect(types).toEqual(["death-effects", "disease", "paralyzed", "poison"]);
     });
 
+    it("gives cosmic creatures an optional cold immunity and a void resistance", () => {
+        // Level 2: maximum 5.
+        expect(traitIwrToAdd(["cosmic"], 2, NONE)).toMatchObject({
+            immunities: [{ type: "cold" }],
+            resistances: [{ type: "void", value: 5 }],
+            required: ["void resistance 5"],
+            optional: ["cold immunity"],
+        });
+    });
+
     it("adds nothing for traits with no IWR", () => {
         expect(traitIwrToAdd(["humanoid", "construct"], 3, NONE)).toMatchObject({
             required: [],
