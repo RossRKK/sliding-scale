@@ -11,6 +11,11 @@ It is off for every NPC until you press **Enable Sliding Scale** on that NPC's s
 Enabling changes no numbers; **Disable Sliding Scale** stops the rescaling and hides the
 adjectives again.
 
+**Apply road map** overwrites an enabled NPC with one of GM Core's base or class road
+maps (Pathfinder's in pf2e, Starfinder's in sf2e, both with Starfinder Anachronism): its
+listed statistics take the road map's adjective, other core statistics become moderate,
+missing named skills are added, and it can add a melee and a ranged Strike.
+
 An enabled NPC's sheet lists **Sliding Scale notes**: things to check by hand, such as a
 large level change or a strike whose dice are a small part of its damage. The tick
 acknowledges a note; a warning comes back only if its cause changes.

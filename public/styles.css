@@ -41,7 +41,8 @@
     font-size: var(--font-size-12, 12px);
 }
 
-.sliding-scale-toggle {
+.sliding-scale-toggle,
+.sliding-scale-road-map {
     flex: none;
     width: auto;
     height: auto;

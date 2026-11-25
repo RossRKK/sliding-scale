@@ -1,0 +1,7 @@
+{
+    "SLIDING_SCALE": {
+        "MeleeStrike": "Melee Strike",
+        "RangedStrike": "Ranged Strike",
+        "UnassignedSkill": "Unassigned Skill"
+    }
+}
