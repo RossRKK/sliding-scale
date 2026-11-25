@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fixedValuesIn, hasFixedValues } from "../core/fixed-values";
+import { rescaleDescription } from "../core/description-values";
 import { PACKS_DIR, readPackNpcs } from "./pack-npcs";
 
 /** Enrichers and inline rolls found in pack descriptions, and whether each must be reported. */
@@ -12,6 +12,12 @@ const CHECK = /@Check\[[^\]]*\]/g;
 const DAMAGE = /@Damage\[(?:[^[\]]|\[[^\]]*\])*\]/g;
 const INLINE_ROLL = /\[\[\/(?:r|roll|gmr|gmroll|br|blindroll|pr|publicroll)\s[^\]]*\]\]/g;
 
+// Ten levels apart, so every fixed DC and damage roll the table can rate changes.
+const touched = (text: string) => {
+    const { rescaled, unscaled } = rescaleDescription(text, 5, 15, []);
+    return rescaled.length + unscaled.length > 0;
+};
+
 describe.skipIf(PACKS_DIR === undefined)("fixed values in every pack NPC ability", () => {
     const descriptions = readPackNpcs().flatMap(({ source }) => abilityDescriptions(source));
     const constructs = descriptions.flatMap(constructsIn);
@@ -23,14 +29,14 @@ describe.skipIf(PACKS_DIR === undefined)("fixed values in every pack NPC ability
     it("never reports a value that follows the actor, a flat check or a recharge roll", () => {
         const reported = constructs
             .filter(({ fixed }) => !fixed)
-            .filter(({ text }) => hasFixedValues(fixedValuesIn(text, [])));
+            .filter(
+                ({ text }) => touched(text) || rescaleDescription(text, 5, 15, []).text !== text,
+            );
         expect(reported.slice(0, 20).map(({ text }) => text)).toEqual([]);
     });
 
-    it("reports every numeric DC and fixed damage roll", () => {
-        const missed = constructs
-            .filter(({ fixed }) => fixed)
-            .filter(({ text }) => !hasFixedValues(fixedValuesIn(text, [])));
+    it("rescales or reports every numeric DC and fixed damage roll", () => {
+        const missed = constructs.filter(({ fixed }) => fixed).filter(({ text }) => !touched(text));
         expect(missed.slice(0, 20).map(({ text }) => text)).toEqual([]);
     });
 });
