@@ -1,5 +1,5 @@
 import type { NPCPF2e } from "@7h3laughingman/pf2e-types";
-import { setEnabled } from "./documents";
+import { applyTraitIwr, setEnabled } from "./documents";
 import { MODULE_ID } from "./npc";
 import { openRoadMapDialog } from "./road-map-dialog";
 
@@ -13,7 +13,9 @@ export function addHeaderBar(npc: NPCPF2e, root: HTMLElement, state: HeaderState
     const bar = document.createElement("div");
     bar.className = `${MODULE_ID}-header`;
     bar.append(enableToggle(npc, state));
-    if (state.enabled) bar.append(roadMapButton(npc, state.editable));
+    if (state.enabled) {
+        bar.append(roadMapButton(npc, state.editable), traitIwrButton(npc, state.editable));
+    }
     const link = sourceLink(npc._stats.compendiumSource);
     if (link !== undefined) bar.append(link);
     root.querySelector(".npc-body > header")?.append(bar);
@@ -42,6 +44,18 @@ function roadMapButton(npc: NPCPF2e, editable: boolean): HTMLButtonElement {
     button.innerHTML = `<i class="fa-solid fa-map"></i> Apply road map`;
     button.dataset.tooltip = "Overwrite this NPC's numbers with a Building Creatures road map";
     button.addEventListener("click", () => void openRoadMapDialog(npc));
+    return button;
+}
+
+function traitIwrButton(npc: NPCPF2e, editable: boolean): HTMLButtonElement {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `${MODULE_ID}-trait-iwr`;
+    button.disabled = !editable;
+    button.innerHTML = `<i class="fa-solid fa-shield-halved"></i> Apply trait IWR`;
+    button.dataset.tooltip =
+        "Add the immunities, weaknesses and resistances this NPC's traits usually bring";
+    button.addEventListener("click", () => void applyTraitIwr(npc));
     return button;
 }
 

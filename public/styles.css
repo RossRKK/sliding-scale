@@ -42,7 +42,8 @@
 }
 
 .sliding-scale-toggle,
-.sliding-scale-road-map {
+.sliding-scale-road-map,
+.sliding-scale-trait-iwr {
     flex: none;
     width: auto;
     height: auto;

@@ -16,6 +16,10 @@ maps (Pathfinder's in pf2e, Starfinder's in sf2e, both with Starfinder Anachroni
 listed statistics take the road map's adjective, other core statistics become moderate,
 missing named skills are added, and it can add a melee and a ranged Strike.
 
+**Apply trait IWR** adds the immunities, weaknesses and resistances GM Core's Trait
+Abilities give the NPC's traits, valued from the Resistances and Weaknesses table, where
+the NPC does not already have that type. It does not change HP; a note reminds you to.
+
 An enabled NPC's sheet lists **Sliding Scale notes**: things to check by hand, such as a
 large level change or a strike whose dice are a small part of its damage. The tick
 acknowledges a note; a warning comes back only if its cause changes.
