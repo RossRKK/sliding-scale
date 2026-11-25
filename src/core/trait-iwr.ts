@@ -9,7 +9,13 @@ import { RESISTANCES_AND_WEAKNESSES } from "./tables";
  * "usually") are optional. Where it offers a choice, the comment names the pick.
  */
 export type TraitIwr =
-    | { readonly kind: "immunity"; readonly type: string; readonly optional?: true }
+    | {
+          readonly kind: "immunity";
+          readonly type: string;
+          readonly optional?: true;
+          /** Immunities that already give this one, so an NPC with either gets nothing more. */
+          readonly coveredBy?: readonly string[];
+      }
     | { readonly kind: "weakness"; readonly type: string; readonly optional?: true }
     | {
           readonly kind: "resistance";
@@ -102,13 +108,13 @@ export const TRAIT_IWR: Readonly<Record<string, readonly TraitIwr[]>> = {
         weakness("splash-damage"),
         { kind: "resistance", type: "physical", breadth: "broad" },
     ],
-    // "sleep (or unconscious if it never rests at all)" → sleep
+    // "sleep (or unconscious if it never rests at all)" → unconscious, unless it has sleep
     undead: [
         immunity("death-effects"),
         immunity("disease"),
         immunity("paralyzed"),
         immunity("poison"),
-        immunity("sleep"),
+        { kind: "immunity", type: "unconscious", coveredBy: ["sleep"] },
     ],
     wood: [weakness("fire"), weakness("axe-vulnerability")], // "fire and axes or slashing" → axes
 };
@@ -177,7 +183,8 @@ export function traitIwrToAdd(
     };
     const added: { iwr: TraitIwr; label: string }[] = [];
     for (const iwr of traits.flatMap((trait) => TRAIT_IWR[trait] ?? [])) {
-        if (seen[iwr.kind].has(iwr.type)) continue;
+        const covering = [iwr.type, ...(iwr.kind === "immunity" ? (iwr.coveredBy ?? []) : [])];
+        if (covering.some((type) => seen[iwr.kind].has(type))) continue;
         seen[iwr.kind].add(iwr.type);
         added.push({
             iwr,

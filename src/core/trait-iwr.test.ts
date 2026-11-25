@@ -68,6 +68,18 @@ describe("traitIwrToAdd", () => {
         ]);
     });
 
+    it("gives undead unconscious immunity", () => {
+        expect(traitIwrToAdd(["undead"], 1, NONE).immunities).toContainEqual({
+            type: "unconscious",
+        });
+    });
+
+    it("does not add unconscious to undead that are already immune to sleep", () => {
+        const existing = { immunities: ["sleep"], weaknesses: [], resistances: [] };
+        const types = traitIwrToAdd(["undead"], 1, existing).immunities.map(({ type }) => type);
+        expect(types).toEqual(["death-effects", "disease", "paralyzed", "poison"]);
+    });
+
     it("adds nothing for traits with no IWR", () => {
         expect(traitIwrToAdd(["humanoid", "construct"], 3, NONE)).toMatchObject({
             required: [],
