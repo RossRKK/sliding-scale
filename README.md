@@ -36,13 +36,17 @@ rating from before the move, which is not stored.
 **Column hopping.** A stat keeps its adjective and offset, but at the new level the
 number can sit nearer another column, and it comes back by that one. An Animated Army's
 120 HP at level 8 is moderate −15; at level 6 that is 80, which rates low +9, so it
-returns as 110. Max HP 13.0% (7.4% within 2 levels), skills 2.2% (0%), strike damage
-3.4% (0.2%), every other stat 1% or less.
+returns as 110. Max HP 13.0% (7.4% within 2 levels), weaknesses 9.8% (1.8%),
+resistances 9.4% (1.8%), skills 2.2% (0%), strike damage 3.4% (0.2%), every other stat 1%
+or less. Weaknesses and resistances hop most at low levels, where Table 2–8's maximum and
+minimum are 1 to 3 apart: a Bogey's cold iron weakness 4 at level 3 is 3 at level 1 and
+returns as 6.
 
 **Ties.** A number exactly between two columns is rated on the higher one, and the other
 reading may have been the right one. A Cavern Troll's Strength +6 at level 6 becomes +5 at
-level 4, a tie there, and stays +5. Attributes 6.8% (5.3%), skills 5.5% (3.7%), strike
-damage 3.3% (5.0%), other stats under 2%.
+level 4, a tie there, and stays +5. Attributes 6.8% (5.3%), weaknesses 6.2% (5.2%),
+resistances 5.4% (4.2%), skills 5.5% (3.7%), strike damage 3.3% (5.0%), other stats under
+2%.
 
 **One-die floor.** Dice counts never go below one, so a count that would have dropped
 below one comes back higher. An Ailuran's 1d6+6 club at level 5 is 1d6+3 at level 3 and
