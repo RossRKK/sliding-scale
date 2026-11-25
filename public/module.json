@@ -4,6 +4,9 @@
     "description": "NPC stat blocks stored as level plus a scale (extreme, high, moderate, low, terrible) and derived at roll time.",
     "version": "0.0.0",
     "authors": [{ "name": "Ross Kelso" }],
+    "url": "https://github.com/RossRKK/sliding-scale",
+    "manifest": "https://github.com/RossRKK/sliding-scale/releases/latest/download/module.json",
+    "bugs": "https://github.com/RossRKK/sliding-scale/issues",
     "compatibility": {
         "minimum": "14",
         "verified": "14.364"

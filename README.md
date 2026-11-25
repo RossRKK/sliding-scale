@@ -24,6 +24,17 @@ An enabled NPC's sheet lists **Sliding Scale notes**: things to check by hand, s
 large level change or a strike whose dice are a small part of its damage. The tick
 acknowledges a note; a warning comes back only if its cause changes.
 
+## Installing
+
+In Foundry's **Add-on Modules → Install Module**, paste this manifest URL:
+
+```
+https://github.com/RossRKK/sliding-scale/releases/latest/download/module.json
+```
+
+Pushing a `vX.Y.Z` tag publishes a release: the workflow tests and builds the module and
+`scripts/package_release.py` stamps the version into the manifest and zips it.
+
 ## Known limitations
 
 Sliding Scale stores nothing but the opt-in flag: each stat is re-rated from its current
