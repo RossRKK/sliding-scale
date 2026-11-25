@@ -126,6 +126,13 @@ describe("rescaleDescription", () => {
         expect(rescaleDescription(there, 15, 10, []).text).toBe(html);
     });
 
+    it("drops brackets a formula no longer needs, so a round trip restores the text", () => {
+        const html = `<p>@Damage[4d6[fire]|options:area-damage]</p>`;
+        const there = rescaleDescription(html, 3, 8, []).text;
+        expect(there).toBe(`<p>@Damage[(9d6+1)[fire]|options:area-damage]</p>`);
+        expect(rescaleDescription(there, 8, 3, []).text).toBe(html);
+    });
+
     it("changes nothing when the level does not", () => {
         const html = `<p>@Damage[(6d6+2)[fire]] (@Check[reflex|dc:25|basic])</p>`;
         expect(rescaleDescription(html, 10, 10, [])).toEqual({

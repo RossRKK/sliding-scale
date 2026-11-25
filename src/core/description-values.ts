@@ -141,8 +141,11 @@ function rescaleDamageRoll(token: string, body: string, { levels, found }: Conte
             return partial;
         }
         if (to !== formula) found.rescaled.push(`${formula} → ${to}`);
-        const bracketed = partial.includes(`(${raw}`) || !/[+-]/.test(to);
-        return partial.replace(raw, bracketed ? to : `(${to})`);
+        // pf2e needs brackets round a formula with a modifier before its category, and only then.
+        const written = /[+-]/.test(to) ? `(${to})` : to;
+        return partial.includes(`(${raw})`)
+            ? partial.replace(`(${raw})`, written)
+            : partial.replace(raw, written);
     });
     return `@Damage[${[rewritten.join(","), ...options].join("|")}]`;
 }
