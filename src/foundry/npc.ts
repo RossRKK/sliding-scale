@@ -1,8 +1,10 @@
 import manifest from "../../public/module.json";
 import type { Adjustment } from "../core/elite-weak";
 import type { StrikeDamage } from "../core/damage";
+import type { StoredNotes } from "../core/notes";
 import type { Stat } from "../core/stats";
 import { readPrecisionAbilities, type PrecisionAbility } from "./precision-abilities";
+import { readStoredNotes } from "./stored-notes";
 import { strikeDamageStat } from "./strike-damage";
 
 export const MODULE_ID = manifest.id;
@@ -30,6 +32,7 @@ export interface ActiveBuild {
     readonly stats: readonly NpcStat[];
     /** Not table-rated, so not stats: they only follow level changes. */
     readonly precisionAbilities: readonly PrecisionAbility[];
+    readonly notes: StoredNotes;
 }
 
 /** The parts of pf2e's NPC source the helper reads; pf2e's NPCSource satisfies it. */
@@ -52,6 +55,7 @@ export interface NpcSource {
 
 interface ItemSource {
     readonly _id: string | null;
+    readonly name?: string | undefined;
     readonly type?: string | undefined;
     readonly system: object;
 }
@@ -64,10 +68,11 @@ export function readNpc(source: NpcSource): NpcBuild {
         adjustment: source.system.attributes.adjustment ?? undefined,
         stats: [...actorStats(source.system), ...source.items.flatMap(itemStats)],
         precisionAbilities: readPrecisionAbilities(source.items),
+        notes: readStoredNotes(source.flags[MODULE_ID]),
     };
 }
 
-/** Opt-in per NPC, absent meaning off: genuine user state, so it is the one stored flag. */
+/** Opt-in per NPC, absent meaning off: genuine user state, so it is stored. */
 function isEnabled(source: NpcSource): boolean {
     const flags = source.flags[MODULE_ID];
     return (

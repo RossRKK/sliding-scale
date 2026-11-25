@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { StrikeDamage } from "../core/damage";
+import { NO_STORED_NOTES } from "../core/notes";
 import type { ActiveBuild, Target } from "./npc";
 import { strikeDamageStat } from "./strike-damage";
 import { planLevelChange } from "./updates";
@@ -43,6 +44,7 @@ function buildWith(level: number, system: object): ActiveBuild {
         adjustment: undefined,
         stats: strikeDamageStat("strikeDamage", "strike", system, target),
         precisionAbilities: [],
+        notes: NO_STORED_NOTES,
     };
 }
 

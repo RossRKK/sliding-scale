@@ -1,12 +1,11 @@
 import type { NPCPF2e } from "@7h3laughingman/pf2e-types";
 import type { Adjective } from "../core/adjective";
-import { diceShare } from "../core/damage";
 import { adjectivesOf, derive, type Rating } from "../core/scale";
 import { TABLE_OF } from "../core/stats";
 import { asNpc, writeUpdate } from "./documents";
 import { addHeaderBar } from "./header";
 import { MODULE_ID, readNpc, type ActiveBuild, type NpcStat } from "./npc";
-import { descriptionMayBeStale } from "./precision-abilities";
+import { addNotesSection } from "./notes-section";
 import { planAdjectives } from "./updates";
 
 /** Adds the header controls and, when enabled, an adjective dropdown per scaled stat to pf2e's NPC sheet. */
@@ -19,18 +18,9 @@ export function registerSheetControls(): void {
         const editable = isEditable(sheet);
         addHeaderBar(npc, root, { enabled: build.state === "active", editable });
         if (build.state === "disabled") return;
+        addNotesSection(npc, build, root, editable);
         addAdjectiveControls(npc, build, root, editable);
-        addStaleDescriptionHints(build, root);
     });
-}
-
-function addStaleDescriptionHints(build: ActiveBuild, root: HTMLElement): void {
-    for (const ability of build.precisionAbilities.filter(descriptionMayBeStale)) {
-        const name = root.querySelector(`li.action[data-item-id="${ability.itemId}"] h4 .name`);
-        name?.append(
-            warningIcon("The description may not match this ability's precision dice any more"),
-        );
-    }
 }
 
 function addAdjectiveControls(
@@ -50,8 +40,6 @@ function addAdjectiveControls(
             void setAdjective(npc, stat.id, select.value as Adjective);
         });
         anchor.place(select);
-        const warning = warningFor(stat);
-        if (warning !== undefined) select.after(warningIcon(warning));
     }
 }
 
@@ -76,13 +64,6 @@ function adjectiveSelect(
         select.append(new Option(label, adjective, false, adjective === rating.adjective));
     }
     return select;
-}
-
-function warningIcon(message: string): HTMLElement {
-    const icon = document.createElement("i");
-    icon.className = `${MODULE_ID}-warning fa-solid fa-triangle-exclamation`;
-    icon.dataset.tooltip = message;
-    return icon;
 }
 
 function ratingLabel({ adjective, offset }: Rating): string {
@@ -127,15 +108,6 @@ function findAnchor(root: HTMLElement, stat: NpcStat): Anchor | undefined {
             );
     }
 }
-
-/** Informational only: a tiny weapon die at high level means almost all damage is the flat modifier. */
-function warningFor({ target }: NpcStat): string | undefined {
-    if (target.kind !== "strikeDamage" || diceShare(target.damage.main) >= LOW_DICE_SHARE)
-        return undefined;
-    return "Dice are under a quarter of this strike's damage; consider a bigger weapon die";
-}
-
-const LOW_DICE_SHARE = 0.25;
 
 function after(element: Element | null): Anchor | undefined {
     return element === null ? undefined : { place: (control) => element.after(control) };

@@ -1,5 +1,7 @@
 import type { NPCPF2e } from "@7h3laughingman/pf2e-types";
+import type { StoredNotes } from "../core/notes";
 import { ENABLED_FLAG, MODULE_ID } from "./npc";
+import { NOTES_FLAG } from "./stored-notes";
 import type { ItemUpdate, NpcUpdate } from "./updates";
 
 export function asNpc(value: unknown): NPCPF2e | undefined {
@@ -22,4 +24,8 @@ export async function writeItems(npc: NPCPF2e, items: readonly ItemUpdate[]): Pr
 
 export async function setEnabled(npc: NPCPF2e, enabled: boolean): Promise<void> {
     await npc.setFlag(MODULE_ID, ENABLED_FLAG, enabled);
+}
+
+export async function writeNotes(npc: NPCPF2e, notes: StoredNotes): Promise<void> {
+    await npc.setFlag(MODULE_ID, NOTES_FLAG, notes);
 }

@@ -1,6 +1,8 @@
 import type { NPCPF2e } from "@7h3laughingman/pf2e-types";
 import { asNpc, writeItems } from "./documents";
+import { afterLevelChange } from "../core/notes";
 import { MODULE_ID, readNpc } from "./npc";
+import { NOTES_FLAG } from "./stored-notes";
 import { planLevelChange, type ItemUpdate } from "./updates";
 
 /** Rescales an NPC's stats when its base level is changed, keeping each stat's adjective and offset. */
@@ -34,7 +36,9 @@ function addRescaledStats(
     }
     const alreadyChanged = new Set(Object.keys(foundry.utils.flattenObject(changed)));
     const plan = planLevelChange(build, newLevel, alreadyChanged);
+    const notes = afterLevelChange(build.notes, build.level, newLevel);
     foundry.utils.mergeObject(changed, foundry.utils.expandObject(plan.actor));
+    foundry.utils.mergeObject(changed, { flags: { [MODULE_ID]: { [NOTES_FLAG]: notes } } });
     // Items are separate documents, so they are written once the actor update has succeeded.
     if (plan.items.length > 0) options[MODULE_ID] = { items: plan.items };
 }

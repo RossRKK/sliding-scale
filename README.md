@@ -11,6 +11,10 @@ It is off for every NPC until you press **Enable Sliding Scale** on that NPC's s
 Enabling changes no numbers; **Disable Sliding Scale** stops the rescaling and hides the
 adjectives again.
 
+An enabled NPC's sheet lists **Sliding Scale notes**: things to check by hand, such as a
+large level change or a strike whose dice are a small part of its damage. The tick
+acknowledges a note; a warning comes back only if its cause changes.
+
 ## Known limitations
 
 Sliding Scale stores nothing but the opt-in flag: each stat is re-rated from its current
