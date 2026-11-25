@@ -67,11 +67,14 @@ interface Groups {
     readonly roll?: string;
     readonly plainDc?: string;
     readonly plainDice?: string;
+    readonly plainCategory?: string;
     readonly plainFlat?: string;
 }
 
 const DURATION = String.raw`\s*(?:rounds?|minutes?|hours?|days?|weeks?|months?|years?)\b`;
 const DICE = String.raw`\d+d\d+(?:\s*[+-]\s*\d+)?`;
+// Plain dice are damage or healing only when the words say so: "rolling 1d4" picks from a list.
+const DAMAGE_WORDS = String.raw`\s+(?:[a-z]+\s+){0,2}(?:damage|Hit Points|HP)\b`;
 const ROLL_COMMANDS = "r|roll|gmr|gmroll|br|blindroll|pr|publicroll";
 
 // One pass: tags and enrichers match first, so the plain-text alternatives see only prose.
@@ -82,19 +85,23 @@ const TOKEN = new RegExp(
         String.raw`@Damage\[(?<damage>(?:[^[\]]|\[[^\]]*\])*)\]`,
         String.raw`\[\[\/(?:${ROLL_COMMANDS})\s+(?<roll>[^\]]*)\]\]`,
         String.raw`@\w+\[(?:[^[\]]|\[[^\]]*\])*\](?:\{[^}]*\})?|\[\[[^\]]*\]\](?:\{[^}]*\})?`,
-        String.raw`\bDC\s+(?<plainDc>\d+)(?!\d|\s*flat)`,
-        String.raw`(?<![\w@.])(?<plainDice>${DICE})(?!\d|${DURATION})`,
+        // A flat check's DC is the condition's, not the creature's, wherever "flat" sits in the sentence.
+        String.raw`(?<!flat[^.<]*)\bDC\s+(?<plainDc>\d+)(?!\d|[^.<]*flat)`,
+        String.raw`(?<![\w@.])(?<plainDice>${DICE})(?!\d|${DURATION})(?=${DAMAGE_WORDS})(?<plainCategory>\s+(?:extra\s+|additional\s+)?(?:precision|persistent|splash)\b)?`,
         String.raw`(?<![\w@.+-])(?<plainFlat>\d+)(?=\s+(?:[a-z]+\s+)?damage\b)`,
     ].join("|"),
     "g",
 );
 
 function rescaleToken(token: string, groups: Groups, context: Context): string {
-    const { check, damage, roll, plainDc, plainDice, plainFlat } = groups;
+    const { check, damage, roll, plainDc, plainDice, plainCategory, plainFlat } = groups;
     if (check !== undefined) return rescaleCheck(token, check, context);
     if (damage !== undefined) return rescaleDamageRoll(token, damage, context);
     if (roll !== undefined) return rescaleInlineRoll(token, roll, context);
     if (plainDc !== undefined) return rescalePlainDc(token, plainDc, context);
+    if (plainDice !== undefined && plainCategory !== undefined) {
+        return rescaleSideDice(token, plainDice, plainCategory, context);
+    }
     if (plainDice !== undefined) return rescalePlainDice(token, plainDice, context);
     if (plainFlat !== undefined) context.found.unscaled.push(`${plainFlat} damage`);
     return token;
@@ -105,6 +112,10 @@ function rescaleCheck(token: string, body: string, { levels, found }: Context): 
     if (body.startsWith("flat|") || dc === null) return token;
     const from = Number(dc[1]);
     const to = rescaleDc(from, levels);
+    if (to === undefined) {
+        found.unscaled.push(`DC ${from} (too far below the table to move)`);
+        return token;
+    }
     if (to !== from) found.rescaled.push(`DC ${from} → ${to}`);
     return token.replace(dc[0], dc[0].replace(String(from), String(to)));
 }
@@ -158,8 +169,23 @@ function rescalePlainDc(token: string, dc: string, { levels, counts, found }: Co
         return token;
     }
     const to = rescaleDc(Number(dc), levels);
+    if (to === undefined) {
+        found.unscaled.push(`DC ${dc} (too far below the table to move)`);
+        return token;
+    }
     if (to !== Number(dc)) found.rescaled.push(`DC ${dc} → ${to}`);
     return token.replace(dc, String(to));
+}
+
+/** Precision dice follow the precision rules; persistent and splash are left to a human. */
+function rescaleSideDice(
+    token: string,
+    dice: string,
+    category: string,
+    { found }: Context,
+): string {
+    if (!/precision/.test(category)) found.unscaled.push(`${compact(dice)}${category}`);
+    return token;
 }
 
 function rescalePlainDice(token: string, dice: string, context: Context): string {
@@ -179,8 +205,10 @@ function rescalePlainDice(token: string, dice: string, context: Context): string
     return token.replace(dice, to);
 }
 
-function rescaleDc(dc: number, { fromLevel, toLevel }: Levels): number {
-    return rescale(SPELL_DC, fromLevel, toLevel, dc) ?? dc;
+/** A rescaled DC below 1 means the value was far off the table, so it is left for a human. */
+function rescaleDc(dc: number, { fromLevel, toLevel }: Levels): number | undefined {
+    const to = rescale(SPELL_DC, fromLevel, toLevel, dc) ?? dc;
+    return to >= 1 ? to : undefined;
 }
 
 /** Weapon dice the strike rules can rebuild; anything else (1d3, 2d18, flat numbers) is left. */

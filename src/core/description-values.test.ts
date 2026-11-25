@@ -53,11 +53,17 @@ describe("rescaleDescription", () => {
     it.each([
         [
             "plain-text values mentioned twice",
-            `<p>DC 25 Will, or DC 25 Fortitude; 2d6 now or 2d6 later.</p>`,
+            `<p>DC 25 Will, or DC 25 Fortitude; 2d6 fire damage now or 2d6 fire damage later.</p>`,
             ["DC 25 (mentioned more than once)", "2d6 (mentioned more than once)"],
         ],
         ["flat damage", `<p>The target takes @Damage[5[bleed]] damage.</p>`, ["5 bleed"]],
         ["plain-text flat damage", `<p>It deals 5 fire damage.</p>`, ["5 damage"]],
+        [
+            "plain-text persistent damage",
+            `<p>It takes 1d6 persistent fire damage.</p>`,
+            ["1d6 persistent"],
+        ],
+
         [
             "odd dice",
             `<p>@Damage[1d3[fire]] and @Damage[2d18[cold]]</p>`,
@@ -81,11 +87,14 @@ describe("rescaleDescription", () => {
         ["a resolved inline roll", `<p>[[/r (@actor.level)d4 #Healing]]</p>`],
         ["a flat check", `<p>@Check[flat|dc:15] to act.</p>`],
         ["a plain-text flat check", `<p>It must succeed at a DC 5 flat check.</p>`],
+        ["a flat check's DC later in the sentence", `<p>This flat check increases to DC 10.</p>`],
+        ["precision dice without a rule", `<p>It deals an additional 1d6 precision damage.</p>`],
         [
             "a recharge roll",
             `<p>It can't breathe again for [[/gmr 1d4 #Recharge Breath Weapon]] rounds.</p>`,
         ],
         ["a duration in dice", `<p>The target is slowed for 1d4 rounds, or 1d12 hours.</p>`],
+        ["dice that are not damage", `<p>Roll 1d4 and consult the list below.</p>`],
         ["a link label", `<p>See @UUID[Compendium.pf2e.conditions.Item.abc]{Frightened 2}.</p>`],
         ["a number in markup", `<p class="dc-25" data-roll="2d6">Text.</p>`],
     ])("does not touch %s", (_case, html) => {
@@ -93,6 +102,16 @@ describe("rescaleDescription", () => {
             text: html,
             rescaled: [],
             unscaled: [],
+        });
+    });
+
+    it("leaves a DC for a human when the move would take it below 1", () => {
+        // Level 20 moderate Spell DC is 39, so 13 is 26 below: level -1's moderate is 13.
+        const html = `<p>@Check[will|dc:13]</p>`;
+        expect(rescaleDescription(html, 20, -1, [])).toEqual({
+            text: html,
+            rescaled: [],
+            unscaled: ["DC 13 (too far below the table to move)"],
         });
     });
 
