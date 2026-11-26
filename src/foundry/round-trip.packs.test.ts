@@ -8,7 +8,7 @@ import {
     weaponDice,
     type StrikeDamage,
 } from "../core/damage";
-import { damageRatingAt, rescaleDescription, type ValueRating } from "../core/description-values";
+import { rescaleDescription, type ValueRating } from "../core/description-values";
 import { BOMB_TIER, progressionAt, SNEAK_ATTACK_DICE, type Band } from "../core/progressions";
 import { adjectivesOf, columnValue, derive, rescale } from "../core/scale";
 import { TABLE_OF } from "../core/stats";
@@ -28,7 +28,6 @@ type Cause =
     | "one-die overshoot"
     | "dice clamp"
     | "HP current clamp"
-    | "table hopping"
     | "value collision"
     | "other";
 
@@ -39,8 +38,6 @@ const INHERENT: readonly Cause[] = [
     "one-die overshoot",
     "dice clamp",
     "HP current clamp",
-    // A description's damage sits nearer the other damage table at the new level.
-    "table hopping",
     // Two of a description's values become equal, so the reverse change cannot tell them apart.
     "value collision",
 ];
@@ -199,7 +196,7 @@ function descriptionOutcomes(trip: Trip): Outcome[] {
                     ? undefined
                     : collided
                       ? "value collision"
-                      : valueCause(trip, rating, [from, to, end], returned?.rating);
+                      : valueCause(trip, rating, [from, to, end]);
             return [outcome(trip, GROUPS[rating], cause, `${itemId} ${from} → ${to} → ${end}`)];
         });
     });
@@ -207,7 +204,6 @@ function descriptionOutcomes(trip: Trip): Outcome[] {
 
 const GROUPS: Record<ValueRating, string> = {
     spellDC: "descriptionDC",
-    strikeDamage: "descriptionDamage",
     areaDamage: "descriptionDamage",
     rider: "descriptionRider",
 };
@@ -216,7 +212,6 @@ function valueCause(
     trip: Trip,
     rating: ValueRating,
     [from, to, end]: readonly [string, string, string],
-    backRating: ValueRating | undefined,
 ): Cause {
     // Riders step with sneak attack dice, so only the one-die floor loses them.
     if (rating === "rider") {
@@ -226,21 +221,10 @@ function valueCause(
         const count = parseFormula(from)?.dice?.count ?? 0;
         return count + step < 1 ? "1-die floor" : "other";
     }
-    if ((backRating ?? ratingAt(to, rating, trip.away.level)) !== rating) return "table hopping";
     const stat = (value: string) => valueStat(value, rating);
     return statCause(trip, stat(from), stat(to), stat(end));
 }
 
-/** The table the reverse level change rates a value on, which nothing stored can pin. */
-function ratingAt(value: string, rating: DcOrDamage, level: number): ValueRating {
-    if (rating === "spellDC") return rating;
-    const { target } = valueStat(value, rating);
-    return target.kind === "strikeDamage" || target.kind === "areaDamage"
-        ? damageRatingAt(target.damage, level)
-        : rating;
-}
-
-/** A description value as the stat it is rated like on one leg. */
 type DcOrDamage = Exclude<ValueRating, "rider">;
 
 function valueStat(value: string, rating: DcOrDamage): NpcStat {

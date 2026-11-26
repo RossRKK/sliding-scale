@@ -3,14 +3,12 @@ import {
     formatFormula,
     parseFormula,
     rebuildAreaDamage,
-    rebuildDamage,
     scaleSidePartial,
     weaponDice,
-    type PartialChange,
     type StrikeDamage,
 } from "./damage";
-import { derive, rescale } from "./scale";
-import { AREA_DAMAGE, SPELL_DC, STRIKE_DAMAGE, type ScaleTable } from "./tables";
+import { rescale } from "./scale";
+import { AREA_DAMAGE, SPELL_DC } from "./tables";
 
 /**
  * DCs and damage written into an ability's description as fixed numbers, rescaled with a level
@@ -33,8 +31,7 @@ export interface ValueChange {
 }
 
 /** Riders, extra damage added to Strikes, scale with the creature like precision damage does. */
-export type ValueRating = "spellDC" | DamageRating | "rider";
-export type DamageRating = "strikeDamage" | "areaDamage";
+export type ValueRating = "spellDC" | "areaDamage" | "rider";
 
 /** What a level change moved, once each, as "DC 25 → 28" or "6d6 → 8d6" for a human to check. */
 export function changeLabels(values: readonly ValueChange[]): string[] {
@@ -44,7 +41,7 @@ export function changeLabels(values: readonly ValueChange[]): string[] {
 
 /**
  * DCs are rated on Spell DC, the table GM Core gives for creatures' ability DCs, and damage on
- * whichever of Strike Damage and Area Damage it sits nearer at the old level: both are guesses
+ * Area Damage's nearer column, the closest table to most damaging abilities: both are guesses
  * from the value alone. Plain text is only rewritten where the value appears once, since a
  * second mention may be about something else. `kept` formulas are kept up to date elsewhere.
  */
@@ -254,47 +251,14 @@ function rescaleDamage(formula: string, levels: Levels, rider: boolean): ValueCh
         extras: [],
         sides: [],
     };
-    const rating = damageRatingAt(damage, levels.fromLevel);
-    const rebuilt = DAMAGE_RATINGS[rating].rebuild(damage, levels);
-    return { rating, from: formula, to: rebuilt?.[0]?.formula ?? formatFormula(parsed) };
-}
-
-/**
- * The table a damage value sits nearer at its level, Strike Damage on a tie as the finer table.
- * It is chosen at the old level, so a level change keeps it, as area attacks keep their column.
- */
-export function damageRatingAt(damage: StrikeDamage, level: number): DamageRating {
-    const distance = (rating: DamageRating) =>
-        Math.abs(
-            derive(DAMAGE_RATINGS[rating].table, level, damageAverage(damage))?.offset ?? Infinity,
-        );
-    return distance("areaDamage") < distance("strikeDamage") ? "areaDamage" : "strikeDamage";
-}
-
-const DAMAGE_RATINGS: Record<
-    DamageRating,
-    {
-        readonly table: ScaleTable;
-        readonly rebuild: (damage: StrikeDamage, levels: Levels) => PartialChange[] | undefined;
-    }
-> = {
-    strikeDamage: { table: STRIKE_DAMAGE, rebuild: rebuildOn(STRIKE_DAMAGE, rebuildDamage) },
-    areaDamage: { table: AREA_DAMAGE, rebuild: rebuildOn(AREA_DAMAGE, rebuildAreaDamage) },
-};
-
-/** Rates the damage on the table at the old level and rebuilds it for the same rating at the new. */
-function rebuildOn(
-    table: ScaleTable,
-    rebuild: (
-        damage: StrikeDamage,
-        target: number,
-        from: number,
-        to: number,
-    ) => PartialChange[] | undefined,
-): (damage: StrikeDamage, levels: Levels) => PartialChange[] | undefined {
-    return (damage, { fromLevel, toLevel }) => {
-        const target = rescale(table, fromLevel, toLevel, damageAverage(damage));
-        return target === undefined ? undefined : rebuild(damage, target, fromLevel, toLevel);
+    const { fromLevel, toLevel } = levels;
+    const target = rescale(AREA_DAMAGE, fromLevel, toLevel, damageAverage(damage));
+    const rebuilt =
+        target === undefined ? undefined : rebuildAreaDamage(damage, target, fromLevel, toLevel);
+    return {
+        rating: "areaDamage",
+        from: formula,
+        to: rebuilt?.[0]?.formula ?? formatFormula(parsed),
     };
 }
 
