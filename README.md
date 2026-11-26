@@ -20,9 +20,9 @@ missing named skills are added, and it can add a melee and a ranged Strike.
 Abilities give the NPC's traits, valued from the Resistances and Weaknesses table, where
 the NPC does not already have that type. It does not change HP; a note reminds you to.
 
-A level change also rescales the DCs and damage written into an enabled NPC's ability
-descriptions (`@Check` DCs, `@Damage` and `[[/r]]` rolls, and plain "DC 25" or "2d6 fire
-damage" mentioned once) and leaves a note saying what changed and what it could not do.
+A level change also rescales the DCs (`@Check` DCs and plain "DC 25" mentioned once) and
+the extra damage riders written into an enabled NPC's ability descriptions, and leaves a
+note saying what changed and listing the damage it left for you.
 
 An enabled NPC's sheet lists **Sliding Scale notes**: things to check by hand, such as a
 large level change or a strike whose dice are a small part of its damage. The tick
@@ -86,19 +86,18 @@ Current HP 0.3% (0.2%).
 Area damage has only 1,250 round trips in the packs (193 within 2 levels), so its rates
 are rough.
 
-**Description numbers.** A DC or damage roll in an ability's description has no table of
-its own, so Sliding Scale guesses one from the value: DCs are rated on Spell DC, and damage
-on whichever of Strike Damage and Area Damage it sits nearer at the old level. Damage the
-words call extra or additional, or that the creature's Strikes deal, is a rider and steps
-with sneak attack dice instead: Pack Attack's 1d4 at level 3 is 2d4 at level 8. DCs are
-lost in 0.8% of round trips (0.7% within 2 levels), mostly ties. Riders are lost in 6.2%
-(0.4%), almost all at the one-die floor. Other damage is lost in 34.4% (33.3%): mostly
-dice dropped to fit a small target and not added back (16.0%, 27.8% within 2 levels),
-since much description damage sits below even Strike Damage's low column: a Vanth's 2d6 at level 7 is 1d6+2 at level 5 and 1d6+4 back; one die
-overshooting (9.8%, 0.5%); and the reverse change re-picking the other table (7.2%,
-4.4%), which nothing stored can pin. Values that follow the actor, flat checks, recharge
-rolls and durations are never touched; values mentioned more than once, flat or odd-die
-damage and persistent damage are listed in the note instead.
+**Description numbers.** A DC in an ability's description keeps its offset from GM Core's
+level-based DCs ("DCs by Level"): new DC = old DC + the level DC's change. One curve for
+every DC means a move and its reverse cancel exactly, at the cost of the Spell DC table's
+adjective-specific slopes, so no DC is lost on a round trip unless a move would take it
+below 1. Damage the words call extra or additional, or that the creature's Strikes deal,
+is a rider and steps with sneak attack dice: Pack Attack's 1d4 at level 3 is 2d4 at
+level 8. Riders are lost in 6.2% of round trips (0.4% within 2 levels), almost all at the
+one-die floor. Other description damage is not rescaled but listed in the note: rebuilt on
+Area Damage, even only inside that table's range, it lost 29% of values within 2 levels,
+because dice dropped to fit a small target are not added back. Values that follow the
+actor, flat checks, recharge rolls and durations are never touched; values mentioned more
+than once are listed in the note.
 
 Also worth knowing:
 
