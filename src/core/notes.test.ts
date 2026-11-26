@@ -118,6 +118,20 @@ describe("noteText", () => {
             `2 "Unassigned Skill" lore skills added: rename to the skills you want`,
         ],
         [
+            {
+                kind: "descriptionsRescaled",
+                items: [
+                    { item: "Breath Weapon", rescaled: ["DC 25 → 28"], unscaled: [] },
+                    {
+                        item: "Venom",
+                        rescaled: [],
+                        unscaled: ["1d6 left as is, below the Area Damage table"],
+                    },
+                ],
+            },
+            "Description numbers rescaled, check them: Breath Weapon: DC 25 → 28. Description numbers Sliding Scale couldn't rescale: Venom: 1d6 left as is, below the Area Damage table",
+        ],
+        [
             lowDice("1d4+20"),
             "Jaws (1d4+20): dice are under a quarter of its damage; consider a bigger weapon die",
         ],

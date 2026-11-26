@@ -21,34 +21,34 @@ describe("rescaleDescription", () => {
             `<p>@Damage[8d6[acid],1d6[persistent,acid]]</p>`,
             `<p>@Damage[10d6[acid],1d6[persistent,acid]]</p>`,
             ["8d6 → 10d6"],
-            ["1d6 persistent,acid"],
+            ["1d6 persistent,acid left as is, persistent damage"],
         ],
         [
             "damage whose formula carries its own category",
-            `<p>@Damage[(2d8[splash])[acid]] and @Damage[2d6[fire]]</p>`,
-            `<p>@Damage[(2d8[splash])[acid]] and @Damage[4d6[fire]]</p>`,
-            ["2d6 → 4d6"],
-            ["2d8 splash acid"],
+            `<p>@Damage[(2d8[splash])[acid]] and @Damage[6d6[fire]]</p>`,
+            `<p>@Damage[(2d8[splash])[acid]] and @Damage[8d6[fire]]</p>`,
+            ["6d6 → 8d6"],
+            ["2d8 splash acid left as is, splash damage"],
         ],
         [
             "a formula that gains a modifier, in brackets as pf2e needs",
-            `<p>@Damage[2d12[fire]]</p>`,
-            `<p>@Damage[(3d12+1)[fire]]</p>`,
-            ["2d12 → 3d12+1"],
+            `<p>@Damage[4d12[fire]]</p>`,
+            `<p>@Damage[(5d12+1)[fire]]</p>`,
+            ["4d12 → 5d12+1"],
             [],
         ],
         [
             "an inline roll, keeping its label",
-            `<p>It regains [[/r 2d8+10 #Healing]] Hit Points.</p>`,
-            `<p>It regains [[/r 4d8+8 #Healing]] Hit Points.</p>`,
-            ["2d8+10 → 4d8+8"],
+            `<p>It regains [[/r 3d8+10 #Healing]] Hit Points.</p>`,
+            `<p>It regains [[/r 5d8+8 #Healing]] Hit Points.</p>`,
+            ["3d8+10 → 5d8+8"],
             [],
         ],
         [
             "plain-text DC and damage mentioned once",
-            `<p>A creature that fails a DC 25 Fortitude save takes 2d6 fire damage.</p>`,
-            `<p>A creature that fails a DC 32 Fortitude save takes 4d6 fire damage.</p>`,
-            ["DC 25 → 32", "2d6 → 4d6"],
+            `<p>A creature that fails a DC 25 Fortitude save takes 6d6 fire damage.</p>`,
+            `<p>A creature that fails a DC 32 Fortitude save takes 8d6 fire damage.</p>`,
+            ["DC 25 → 32", "6d6 → 8d6"],
             [],
         ],
     ])("rescales %s", (_case, html, text, rescaled, unscaled) => {
@@ -61,22 +61,41 @@ describe("rescaleDescription", () => {
 
     it.each([
         [
+            "damage outside the Area Damage table's range",
+            `<p>@Damage[2d6[fire]] and @Damage[20d6[fire]]</p>`,
+            [
+                "2d6 fire left as is, below the Area Damage table",
+                "20d6 fire left as is, above the Area Damage table",
+            ],
+        ],
+        [
             "plain-text values mentioned twice",
             `<p>DC 25 Will, or DC 25 Fortitude; 2d6 fire damage now or 2d6 fire damage later.</p>`,
-            ["DC 25 (mentioned more than once)", "2d6 (mentioned more than once)"],
+            [
+                "DC 25 left as is, mentioned more than once",
+                "2d6 left as is, mentioned more than once",
+            ],
         ],
-        ["flat damage", `<p>The target takes @Damage[5[bleed]] damage.</p>`, ["5 bleed"]],
-        ["plain-text flat damage", `<p>It deals 5 fire damage.</p>`, ["5 damage"]],
+        [
+            "flat damage",
+            `<p>The target takes @Damage[5[bleed]] damage.</p>`,
+            ["5 bleed left as is, not dice"],
+        ],
+        [
+            "plain-text flat damage",
+            `<p>It deals 5 fire damage.</p>`,
+            ["5 damage left as is, not dice"],
+        ],
         [
             "plain-text persistent damage",
             `<p>It takes 1d6 persistent fire damage.</p>`,
-            ["1d6 persistent"],
+            ["1d6 left as is, persistent damage"],
         ],
 
         [
             "odd dice",
             `<p>@Damage[1d3[fire]] and @Damage[2d18[cold]]</p>`,
-            ["1d3 fire", "2d18 cold"],
+            ["1d3 fire left as is, not a weapon die", "2d18 cold left as is, not a weapon die"],
         ],
     ])("leaves %s for a human", (_case, html, unscaled) => {
         expect(summarise(rescaleDescription(html, 10, 15, []))).toEqual({
@@ -139,7 +158,7 @@ describe("rescaleDescription", () => {
         expect(summarise(rescaleDescription(html, 20, -1, []))).toEqual({
             text: html,
             rescaled: [],
-            unscaled: ["DC 13 (too far below the table to move)"],
+            unscaled: ["DC 13 left as is, too far below the Spell DC table to move"],
         });
     });
 

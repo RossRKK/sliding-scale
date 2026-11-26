@@ -191,7 +191,7 @@ describe("ability descriptions", () => {
             {
                 item: "Breath Weapon",
                 rescaled: ["4d6 → 9d6+1", "DC 20 → 26"],
-                unscaled: ["DC 20 (mentioned more than once)"],
+                unscaled: ["DC 20 left as is, mentioned more than once"],
             },
         ]);
     });

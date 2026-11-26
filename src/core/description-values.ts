@@ -7,7 +7,7 @@ import {
     weaponDice,
     type StrikeDamage,
 } from "./damage";
-import { rescale } from "./scale";
+import { columnValue, rescale } from "./scale";
 import { AREA_DAMAGE, SPELL_DC } from "./tables";
 
 /**
@@ -123,7 +123,9 @@ function rescaleToken(token: string, groups: Groups, context: Context): string {
         return rescaleSideDice(token, plainDice, plainCategory, context);
     }
     if (plainDice !== undefined) return rescalePlainDice(token, plainDice, context);
-    if (plainFlat !== undefined) context.found.unscaled.push(`${plainFlat} damage`);
+    if (plainFlat !== undefined) {
+        context.found.unscaled.push(leftAsIs(`${plainFlat} damage`, "not dice"));
+    }
     return token;
 }
 
@@ -133,7 +135,7 @@ function rescaleCheck(token: string, body: string, { levels, found }: Context): 
     const from = Number(dc[1]);
     const to = rescaleDc(from, levels);
     if (to === undefined) {
-        found.unscaled.push(`DC ${from} (too far below the table to move)`);
+        found.unscaled.push(leftAsIs(`DC ${from}`, "too far below the Spell DC table to move"));
         return token;
     }
     found.values.push({ rating: "spellDC", from: `DC ${from}`, to: `DC ${to}` });
@@ -151,13 +153,14 @@ function rescaleDamageRoll(token: string, body: string, { levels, found, rider }
         const categories = [...partial.matchAll(/\[([^\]]*)\]/g)].map(([, category]) => category);
         const label = [formula, ...categories].join(" ");
         // Persistent, precision and splash damage follow their own rules, not the ability's.
-        if (categories.some((category) => /persistent|precision|splash/.test(category ?? ""))) {
-            found.unscaled.push(label);
+        const side = categories.join(" ").match(/persistent|precision|splash/)?.[0];
+        if (side !== undefined) {
+            found.unscaled.push(leftAsIs(label, `${side} damage`));
             return partial;
         }
         const change = rescaleDamage(formula, levels, rider);
-        if (change === undefined) {
-            found.unscaled.push(label);
+        if ("reason" in change) {
+            found.unscaled.push(leftAsIs(label, change.reason));
             return partial;
         }
         const { to } = change;
@@ -177,8 +180,8 @@ function rescaleInlineRoll(token: string, body: string, { levels, found, rider }
     const formula = compact(formulaText.replaceAll(/\[[^\]]*\]|[()]/g, ""));
     if (!/\d+d\d+/.test(formula)) return token;
     const change = rescaleDamage(formula, levels, rider);
-    if (change === undefined) {
-        found.unscaled.push(formula);
+    if ("reason" in change) {
+        found.unscaled.push(leftAsIs(formula, change.reason));
         return token;
     }
     const { to } = change;
@@ -190,12 +193,12 @@ function rescaleInlineRoll(token: string, body: string, { levels, found, rider }
 
 function rescalePlainDc(token: string, dc: string, { levels, counts, found }: Context): string {
     if (counts.get(`DC ${dc}`) !== 1) {
-        found.unscaled.push(`DC ${dc} (mentioned more than once)`);
+        found.unscaled.push(leftAsIs(`DC ${dc}`, "mentioned more than once"));
         return token;
     }
     const to = rescaleDc(Number(dc), levels);
     if (to === undefined) {
-        found.unscaled.push(`DC ${dc} (too far below the table to move)`);
+        found.unscaled.push(leftAsIs(`DC ${dc}`, "too far below the Spell DC table to move"));
         return token;
     }
     found.values.push({ rating: "spellDC", from: `DC ${dc}`, to: `DC ${to}` });
@@ -209,7 +212,8 @@ function rescaleSideDice(
     category: string,
     { found }: Context,
 ): string {
-    if (!/precision/.test(category)) found.unscaled.push(`${compact(dice)}${category}`);
+    const side = /persistent|splash/.exec(category)?.[0];
+    if (side !== undefined) found.unscaled.push(leftAsIs(compact(dice), `${side} damage`));
     return token;
 }
 
@@ -218,12 +222,12 @@ function rescalePlainDice(token: string, dice: string, context: Context): string
     const formula = compact(dice);
     if (kept.includes(formula)) return token;
     if (counts.get(formula) !== 1) {
-        found.unscaled.push(`${formula} (mentioned more than once)`);
+        found.unscaled.push(leftAsIs(formula, "mentioned more than once"));
         return token;
     }
     const change = rescaleDamage(formula, levels, rider);
-    if (change === undefined) {
-        found.unscaled.push(formula);
+    if ("reason" in change) {
+        found.unscaled.push(leftAsIs(formula, change.reason));
         return token;
     }
     found.values.push(change);
@@ -236,13 +240,23 @@ function rescaleDc(dc: number, { fromLevel, toLevel }: Levels): number | undefin
     return to >= 1 ? to : undefined;
 }
 
-/** Weapon dice the strike rules can rebuild; anything else (1d3, 2d18, flat numbers) is left. */
-function rescaleDamage(formula: string, levels: Levels, rider: boolean): ValueChange | undefined {
+/**
+ * Riders step with sneak attack dice. Other damage is rescaled on Area Damage only inside the
+ * table's range at the old level, where the round trip shows the rule holds; outside it, and for
+ * dice the rules cannot rebuild (1d3, 2d18, flat numbers), it is left for a human.
+ */
+function rescaleDamage(
+    formula: string,
+    levels: Levels,
+    rider: boolean,
+): ValueChange | { readonly reason: string } {
     const parsed = parseFormula(formula);
     const dice = parsed?.dice === undefined ? undefined : weaponDice(parsed.dice);
-    if (parsed === undefined || dice === undefined) return undefined;
+    if (parsed === undefined || dice === undefined) {
+        return { reason: parsed?.dice === undefined ? "not dice" : "not a weapon die" };
+    }
+    const { fromLevel, toLevel } = levels;
     if (rider) {
-        const { fromLevel, toLevel } = levels;
         const scaled = scaleSidePartial("precision", parsed, fromLevel, toLevel);
         return { rating: "rider", from: formula, to: formatFormula(scaled) };
     }
@@ -251,8 +265,12 @@ function rescaleDamage(formula: string, levels: Levels, rider: boolean): ValueCh
         extras: [],
         sides: [],
     };
-    const { fromLevel, toLevel } = levels;
-    const target = rescale(AREA_DAMAGE, fromLevel, toLevel, damageAverage(damage));
+    const average = damageAverage(damage);
+    const low = columnValue(AREA_DAMAGE, fromLevel, "unlimited") ?? -Infinity;
+    const high = columnValue(AREA_DAMAGE, fromLevel, "limited") ?? Infinity;
+    if (average < low) return { reason: "below the Area Damage table" };
+    if (average > high) return { reason: "above the Area Damage table" };
+    const target = rescale(AREA_DAMAGE, fromLevel, toLevel, average);
     const rebuilt =
         target === undefined ? undefined : rebuildAreaDamage(damage, target, fromLevel, toLevel);
     return {
@@ -260,6 +278,10 @@ function rescaleDamage(formula: string, levels: Levels, rider: boolean): ValueCh
         from: formula,
         to: rebuilt?.[0]?.formula ?? formatFormula(parsed),
     };
+}
+
+function leftAsIs(value: string, reason: string): string {
+    return `${value} left as is, ${reason}`;
 }
 
 // "deal 1d4 extra damage", "an additional 1d6 fire damage", "its Strikes deal 1d6 fire damage".

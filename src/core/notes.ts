@@ -140,7 +140,7 @@ function descriptionText(items: readonly DescriptionValues[]): string {
     };
     return [
         ...part("Description numbers rescaled, check them:", ({ rescaled }) => rescaled),
-        ...part("Description numbers not rescaled, do by hand:", ({ unscaled }) => unscaled),
+        ...part("Description numbers Sliding Scale couldn't rescale:", ({ unscaled }) => unscaled),
     ].join(". ");
 }
 

@@ -29,6 +29,7 @@ type Cause =
     | "dice clamp"
     | "HP current clamp"
     | "value collision"
+    | "left on the way back"
     | "other";
 
 const INHERENT: readonly Cause[] = [
@@ -40,6 +41,8 @@ const INHERENT: readonly Cause[] = [
     "HP current clamp",
     // Two of a description's values become equal, so the reverse change cannot tell them apart.
     "value collision",
+    // The first change moved a value outside the range the reverse change rescales.
+    "left on the way back",
 ];
 
 interface Outcome {
@@ -184,22 +187,31 @@ function descriptionOutcomes(trip: Trip): Outcome[] {
             trip.start.level,
             precisionOf(trip.away, itemId),
         );
-        // Both legs read the same tokens in the same order, so values pair by position, unless
-        // the first made two mentions equal and the second left them as ambiguous.
-        const collided = back.values.length !== away.values.length;
-        return away.values.flatMap(({ rating, from, to }, index) => {
+        // The reverse change reads the same tokens in the same order, except ones it now leaves.
+        let next = 0;
+        return away.values.flatMap(({ rating, from, to }) => {
             if (from === to) return [];
-            const returned = collided ? undefined : back.values[index];
-            const end = returned?.to ?? to;
+            const found = back.values.findIndex(
+                (value, index) => index >= next && value.from === to && value.rating === rating,
+            );
+            if (found >= 0) next = found + 1;
+            const end = found >= 0 ? back.values[found]!.to : to;
             const cause =
                 end === from
                     ? undefined
-                    : collided
-                      ? "value collision"
+                    : found < 0
+                      ? leftCause(back.unscaled, to)
                       : valueCause(trip, rating, [from, to, end]);
             return [outcome(trip, GROUPS[rating], cause, `${itemId} ${from} → ${to} → ${end}`)];
         });
     });
+}
+
+/** Why the reverse change left a value the first one moved. */
+function leftCause(unscaled: readonly string[], value: string): Cause {
+    return unscaled.includes(`${value} left as is, mentioned more than once`)
+        ? "value collision"
+        : "left on the way back";
 }
 
 const GROUPS: Record<ValueRating, string> = {
