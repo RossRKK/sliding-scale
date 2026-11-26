@@ -1,18 +1,10 @@
-import {
-    damageAverage,
-    formatFormula,
-    parseFormula,
-    rebuildAreaDamage,
-    scaleSidePartial,
-    weaponDice,
-    type StrikeDamage,
-} from "./damage";
-import { columnValue, rescale } from "./scale";
-import { AREA_DAMAGE, SPELL_DC } from "./tables";
+import { formatFormula, parseFormula, scaleSidePartial } from "./damage";
+import { rescale } from "./scale";
+import { SPELL_DC } from "./tables";
 
 /**
- * DCs and damage written into an ability's description as fixed numbers, rescaled with a level
- * change like the stats. Values that follow the actor (resolve(...), @actor…), flat checks,
+ * DCs and Strike riders written into an ability's description as fixed numbers, rescaled with a
+ * level change like the stats; other damage is listed for a human. Values that follow the actor (resolve(...), @actor…), flat checks,
  * recharge rolls and durations do not depend on level and are left alone.
  */
 export interface DescriptionRescale {
@@ -31,7 +23,7 @@ export interface ValueChange {
 }
 
 /** Riders, extra damage added to Strikes, scale with the creature like precision damage does. */
-export type ValueRating = "spellDC" | "areaDamage" | "rider";
+export type ValueRating = "spellDC" | "rider";
 
 /** What a level change moved, once each, as "DC 25 → 28" or "6d6 → 8d6" for a human to check. */
 export function changeLabels(values: readonly ValueChange[]): string[] {
@@ -40,9 +32,8 @@ export function changeLabels(values: readonly ValueChange[]): string[] {
 }
 
 /**
- * DCs are rated on Spell DC, the table GM Core gives for creatures' ability DCs, and damage on
- * Area Damage's nearer column, the closest table to most damaging abilities: both are guesses
- * from the value alone. Plain text is only rewritten where the value appears once, since a
+ * DCs are rated on Spell DC, the table GM Core gives for creatures' ability DCs, a guess from the
+ * value alone. Plain text is only rewritten where the value appears once, since a
  * second mention may be about something else. `kept` formulas are kept up to date elsewhere.
  */
 export function rescaleDescription(
@@ -241,43 +232,20 @@ function rescaleDc(dc: number, { fromLevel, toLevel }: Levels): number | undefin
 }
 
 /**
- * Riders step with sneak attack dice. Other damage is rescaled on Area Damage only inside the
- * table's range at the old level, where the round trip shows the rule holds; outside it, and for
- * dice the rules cannot rebuild (1d3, 2d18, flat numbers), it is left for a human.
+ * Riders step with sneak attack dice, which the round trip shows holds. No table rebuilds other
+ * description damage accurately enough (29% of it lost within two levels on Area Damage, even
+ * inside the table's range), so it is left for a human.
  */
 function rescaleDamage(
     formula: string,
-    levels: Levels,
+    { fromLevel, toLevel }: Levels,
     rider: boolean,
 ): ValueChange | { readonly reason: string } {
     const parsed = parseFormula(formula);
-    const dice = parsed?.dice === undefined ? undefined : weaponDice(parsed.dice);
-    if (parsed === undefined || dice === undefined) {
-        return { reason: parsed?.dice === undefined ? "not dice" : "not a weapon die" };
-    }
-    const { fromLevel, toLevel } = levels;
-    if (rider) {
-        const scaled = scaleSidePartial("precision", parsed, fromLevel, toLevel);
-        return { rating: "rider", from: formula, to: formatFormula(scaled) };
-    }
-    const damage: StrikeDamage = {
-        main: { key: "main", dice, flat: parsed.flat },
-        extras: [],
-        sides: [],
-    };
-    const average = damageAverage(damage);
-    const low = columnValue(AREA_DAMAGE, fromLevel, "unlimited") ?? -Infinity;
-    const high = columnValue(AREA_DAMAGE, fromLevel, "limited") ?? Infinity;
-    if (average < low) return { reason: "below the Area Damage table" };
-    if (average > high) return { reason: "above the Area Damage table" };
-    const target = rescale(AREA_DAMAGE, fromLevel, toLevel, average);
-    const rebuilt =
-        target === undefined ? undefined : rebuildAreaDamage(damage, target, fromLevel, toLevel);
-    return {
-        rating: "areaDamage",
-        from: formula,
-        to: rebuilt?.[0]?.formula ?? formatFormula(parsed),
-    };
+    if (parsed?.dice === undefined) return { reason: "not dice" };
+    if (!rider) return { reason: "damage other than a Strike rider isn't rescaled" };
+    const scaled = scaleSidePartial("precision", parsed, fromLevel, toLevel);
+    return { rating: "rider", from: formula, to: formatFormula(scaled) };
 }
 
 function leftAsIs(value: string, reason: string): string {

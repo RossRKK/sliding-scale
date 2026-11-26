@@ -180,18 +180,21 @@ describe("ability descriptions", () => {
     };
     const withBreath = (): NpcSource => ({ ...npcSource(), items: [...npcSource().items, breath] });
 
-    it("rescales an ability's fixed DC and damage on a level change", () => {
-        // At level 3 DC 20 is Spell DC high and 4d6 (14) Area Damage limited; level 8: 26 and 32.
+    it("rescales an ability's fixed DC on a level change and notes its damage", () => {
+        // At level 3 DC 20 is Spell DC high; level 8's high is 26.
         const plan = planLevelChange(activeNpc(withBreath()), 8, new Set());
         expect(plan.items.find(({ itemId }) => itemId === "breath1")?.fields).toEqual({
             "system.description.value":
-                "<p>@Damage[(9d6+1)[fire]] (@Check[reflex|dc:26|basic]); see DC 20 and DC 20.</p>",
+                "<p>@Damage[4d6[fire]] (@Check[reflex|dc:26|basic]); see DC 20 and DC 20.</p>",
         });
         expect(plan.descriptions).toEqual([
             {
                 item: "Breath Weapon",
-                rescaled: ["4d6 → 9d6+1", "DC 20 → 26"],
-                unscaled: ["DC 20 left as is, mentioned more than once"],
+                rescaled: ["DC 20 → 26"],
+                unscaled: [
+                    "4d6 fire left as is, damage other than a Strike rider isn't rescaled",
+                    "DC 20 left as is, mentioned more than once",
+                ],
             },
         ]);
     });

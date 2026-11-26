@@ -5,7 +5,6 @@ import {
     damageDiceAt,
     formatFormula,
     parseFormula,
-    weaponDice,
     type StrikeDamage,
 } from "../core/damage";
 import { rescaleDescription, type ValueRating } from "../core/description-values";
@@ -216,7 +215,6 @@ function leftCause(unscaled: readonly string[], value: string): Cause {
 
 const GROUPS: Record<ValueRating, string> = {
     spellDC: "descriptionDC",
-    areaDamage: "descriptionDamage",
     rider: "descriptionRider",
 };
 
@@ -233,25 +231,13 @@ function valueCause(
         const count = parseFormula(from)?.dice?.count ?? 0;
         return count + step < 1 ? "1-die floor" : "other";
     }
-    const stat = (value: string) => valueStat(value, rating);
-    return statCause(trip, stat(from), stat(to), stat(end));
+    return statCause(trip, dcStat(from), dcStat(to), dcStat(end));
 }
 
-type DcOrDamage = Exclude<ValueRating, "rider">;
-
-function valueStat(value: string, rating: DcOrDamage): NpcStat {
-    if (rating === "spellDC") {
-        const dc = Number(value.slice(3));
-        return { id: value, kind: "spellDC", value: dc, target: { kind: "areaDC", itemId: "" } };
-    }
-    const { dice, flat } = parseFormula(value)!;
-    const damage: StrikeDamage = {
-        main: { key: "main", dice: weaponDice(dice!)!, flat },
-        extras: [],
-        sides: [],
-    };
-    const target = { kind: rating, itemId: "", damage } as const;
-    return { id: value, kind: rating, value: damageAverage(damage), target };
+/** A description DC as the Spell DC stat it is rated like. */
+function dcStat(value: string): NpcStat {
+    const dc = Number(value.slice(3));
+    return { id: value, kind: "spellDC", value: dc, target: { kind: "areaDC", itemId: "" } };
 }
 
 function precisionOf(build: ActiveBuild, itemId: string): string[] {

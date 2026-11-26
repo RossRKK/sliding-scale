@@ -6,49 +6,30 @@ function summarise({ text, values, unscaled }: DescriptionRescale) {
     return { text, rescaled: changeLabels(values), unscaled };
 }
 
-// Level 10 to 15. Spell DC: moderate 26 → 33. Area Damage unlimited: 20 → 27.
+const NOT_A_RIDER = "damage other than a Strike rider isn't rescaled";
+
+// Level 10 to 15: Spell DC moderate 26 → 33, sneak attack dice 2 → 3.
 describe("rescaleDescription", () => {
     it.each([
         [
-            "a basic save with breath damage",
+            "a basic save, leaving its damage to a human",
             `<p>Fire deals @Damage[(6d6+2)[fire]|options:area-damage] damage (@Check[reflex|dc:25|basic]).</p>`,
-            `<p>Fire deals @Damage[(8d6+2)[fire]|options:area-damage] damage (@Check[reflex|dc:32|basic]).</p>`,
-            ["6d6+2 → 8d6+2", "DC 25 → 32"],
-            [],
+            `<p>Fire deals @Damage[(6d6+2)[fire]|options:area-damage] damage (@Check[reflex|dc:32|basic]).</p>`,
+            ["DC 25 → 32"],
+            [`6d6+2 fire left as is, ${NOT_A_RIDER}`],
         ],
         [
-            "the main partial, leaving persistent damage to a human",
-            `<p>@Damage[8d6[acid],1d6[persistent,acid]]</p>`,
-            `<p>@Damage[10d6[acid],1d6[persistent,acid]]</p>`,
-            ["8d6 → 10d6"],
-            ["1d6 persistent,acid left as is, persistent damage"],
-        ],
-        [
-            "damage whose formula carries its own category",
-            `<p>@Damage[(2d8[splash])[acid]] and @Damage[6d6[fire]]</p>`,
-            `<p>@Damage[(2d8[splash])[acid]] and @Damage[8d6[fire]]</p>`,
-            ["6d6 → 8d6"],
-            ["2d8 splash acid left as is, splash damage"],
-        ],
-        [
-            "a formula that gains a modifier, in brackets as pf2e needs",
-            `<p>@Damage[4d12[fire]]</p>`,
-            `<p>@Damage[(5d12+1)[fire]]</p>`,
-            ["4d12 → 5d12+1"],
-            [],
-        ],
-        [
-            "an inline roll, keeping its label",
-            `<p>It regains [[/r 3d8+10 #Healing]] Hit Points.</p>`,
-            `<p>It regains [[/r 5d8+8 #Healing]] Hit Points.</p>`,
-            ["3d8+10 → 5d8+8"],
-            [],
-        ],
-        [
-            "plain-text DC and damage mentioned once",
+            "a plain-text DC mentioned once",
             `<p>A creature that fails a DC 25 Fortitude save takes 6d6 fire damage.</p>`,
-            `<p>A creature that fails a DC 32 Fortitude save takes 8d6 fire damage.</p>`,
-            ["DC 25 → 32", "6d6 → 8d6"],
+            `<p>A creature that fails a DC 32 Fortitude save takes 6d6 fire damage.</p>`,
+            ["DC 25 → 32"],
+            [`6d6 left as is, ${NOT_A_RIDER}`],
+        ],
+        [
+            "an enriched rider, keeping the brackets its modifier needs",
+            `<p>Its Strikes deal an additional @Damage[(2d6+2)[fire]] damage.</p>`,
+            `<p>Its Strikes deal an additional @Damage[(3d6+2)[fire]] damage.</p>`,
+            ["2d6+2 → 3d6+2"],
             [],
         ],
     ])("rescales %s", (_case, html, text, rescaled, unscaled) => {
@@ -61,16 +42,17 @@ describe("rescaleDescription", () => {
 
     it.each([
         [
-            "damage outside the Area Damage table's range",
-            `<p>@Damage[2d6[fire]] and @Damage[20d6[fire]]</p>`,
+            "damage that is not a rider",
+            `<p>@Damage[8d6[acid],1d6[persistent,acid]] or [[/r 3d8+10 #Healing]]</p>`,
             [
-                "2d6 fire left as is, below the Area Damage table",
-                "20d6 fire left as is, above the Area Damage table",
+                `8d6 acid left as is, ${NOT_A_RIDER}`,
+                "1d6 persistent,acid left as is, persistent damage",
+                `3d8+10 left as is, ${NOT_A_RIDER}`,
             ],
         ],
         [
             "plain-text values mentioned twice",
-            `<p>DC 25 Will, or DC 25 Fortitude; 2d6 fire damage now or 2d6 fire damage later.</p>`,
+            `<p>DC 25 Will, or DC 25 Fortitude; 2d6 extra damage now or 2d6 extra damage later.</p>`,
             [
                 "DC 25 left as is, mentioned more than once",
                 "2d6 left as is, mentioned more than once",
@@ -90,12 +72,6 @@ describe("rescaleDescription", () => {
             "plain-text persistent damage",
             `<p>It takes 1d6 persistent fire damage.</p>`,
             ["1d6 left as is, persistent damage"],
-        ],
-
-        [
-            "odd dice",
-            `<p>@Damage[1d3[fire]] and @Damage[2d18[cold]]</p>`,
-            ["1d3 fire left as is, not a weapon die", "2d18 cold left as is, not a weapon die"],
         ],
     ])("leaves %s for a human", (_case, html, unscaled) => {
         expect(summarise(rescaleDescription(html, 10, 15, []))).toEqual({
@@ -168,20 +144,13 @@ describe("rescaleDescription", () => {
     });
 
     it("comes back to the original text after the reverse level change", () => {
-        const html = `<p>@Damage[(6d6+2)[fire]] (@Check[reflex|dc:25|basic]); a DC 21 Will save.</p>`;
+        const html = `<p>(@Check[reflex|dc:25|basic]); a DC 21 Will save; 1d6 extra damage.</p>`;
         const there = rescaleDescription(html, 10, 15, []).text;
         expect(rescaleDescription(there, 15, 10, []).text).toBe(html);
     });
 
-    it("drops brackets a formula no longer needs, so a round trip restores the text", () => {
-        const html = `<p>@Damage[4d6[fire]|options:area-damage]</p>`;
-        const there = rescaleDescription(html, 3, 8, []).text;
-        expect(there).toBe(`<p>@Damage[(9d6+1)[fire]|options:area-damage]</p>`);
-        expect(rescaleDescription(there, 8, 3, []).text).toBe(html);
-    });
-
     it("changes nothing when the level does not", () => {
-        const html = `<p>@Damage[(6d6+2)[fire]] (@Check[reflex|dc:25|basic])</p>`;
+        const html = `<p>1d6 extra damage (@Check[reflex|dc:25|basic])</p>`;
         expect(summarise(rescaleDescription(html, 10, 10, []))).toEqual({
             text: html,
             rescaled: [],
