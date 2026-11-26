@@ -296,6 +296,44 @@ export const SPELL_ATTACK = scaleTable(
     ],
 );
 
+// GM Core "DCs by Level" (level-based DCs), https://2e.aonsrd.com/rules/704-level-based-dcs
+const LEVEL_BASED_DCS: readonly (readonly [level: number, dc: number])[] = [
+    [0, 14],
+    [1, 15],
+    [2, 16],
+    [3, 18],
+    [4, 19],
+    [5, 20],
+    [6, 22],
+    [7, 23],
+    [8, 24],
+    [9, 26],
+    [10, 27],
+    [11, 28],
+    [12, 30],
+    [13, 31],
+    [14, 32],
+    [15, 34],
+    [16, 35],
+    [17, 36],
+    [18, 38],
+    [19, 39],
+    [20, 40],
+    [21, 42],
+    [22, 44],
+    [23, 46],
+    [24, 48],
+    [25, 50],
+];
+
+/** The table starts at 0 and ends at 25; other levels read the nearest row, as columns do. */
+export function levelBasedDc(level: number): number {
+    const nearest = LEVEL_BASED_DCS.reduce((best, row) =>
+        Math.abs(row[0] - level) < Math.abs(best[0] - level) ? row : best,
+    );
+    return nearest[1];
+}
+
 // GM Core "Strike Damage" table, https://2e.aonsrd.com/rules/1012-strike-damage
 const STRIKE_DAMAGE_ROWS: readonly DamageRow[] = [
     [-1, ["1d6+1", 4], ["1d4+1", 3], ["1d4", 3], ["1d4", 2]],

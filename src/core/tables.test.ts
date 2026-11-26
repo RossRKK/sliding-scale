@@ -54,3 +54,25 @@ describe("transcription", () => {
         },
     );
 });
+
+describe("levelBasedDc", () => {
+    it.each([
+        [0, 14],
+        [3, 18],
+        [12, 30],
+        [20, 40],
+        [25, 50],
+    ])("reads GM Core's DC for level %i as %i", (level, dc) => {
+        expect(tables.levelBasedDc(level)).toBe(dc);
+    });
+
+    it("reads levels off the table at the nearest row", () => {
+        expect(tables.levelBasedDc(-1)).toBe(14);
+        expect(tables.levelBasedDc(30)).toBe(50);
+    });
+
+    it("rises with every level", () => {
+        const dcs = Array.from({ length: 26 }, (_, level) => tables.levelBasedDc(level));
+        expect(dcs.every((dc, level) => level === 0 || dc > dcs[level - 1]!)).toBe(true);
+    });
+});
