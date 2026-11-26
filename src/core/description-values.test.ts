@@ -8,7 +8,7 @@ function summarise({ text, values, unscaled }: DescriptionRescale) {
 
 const NOT_A_RIDER = "damage other than a Strike rider isn't rescaled";
 
-// Level 10 to 15: Spell DC moderate 26 → 33, sneak attack dice 2 → 3.
+// Level 10 to 15: level-based DC 27 → 34, so DCs move by 7; sneak attack dice 2 → 3.
 describe("rescaleDescription", () => {
     it.each([
         [
@@ -129,13 +129,28 @@ describe("rescaleDescription", () => {
     });
 
     it("leaves a DC for a human when the move would take it below 1", () => {
-        // Level 20 moderate Spell DC is 39, so 13 is 26 below: level -1's moderate is 13.
+        // The level-based DC is 40 at level 20 and 14 at level -1, so DCs move by -26.
         const html = `<p>@Check[will|dc:13]</p>`;
         expect(summarise(rescaleDescription(html, 20, -1, []))).toEqual({
             text: html,
             rescaled: [],
-            unscaled: ["DC 13 left as is, too far below the Spell DC table to move"],
+            unscaled: ["DC 13 left as is, the move would take it below 1"],
         });
+    });
+
+    it("returns every DC after any level change and its reverse", () => {
+        const levels = Array.from({ length: 26 }, (_, index) => index - 1);
+        const lost = levels.flatMap((from) =>
+            levels.flatMap((to) =>
+                [10, 18, 25, 33, 41, 50].flatMap((dc) => {
+                    const html = `<p>@Check[will|dc:${dc}]</p>`;
+                    const there = rescaleDescription(html, from, to, []).text;
+                    const back = rescaleDescription(there, to, from, []).text;
+                    return back === html || there === html ? [] : [`${dc} ${from}→${to}`];
+                }),
+            ),
+        );
+        expect(lost).toEqual([]);
     });
 
     it("leaves the formulas the precision rewrite keeps up to date", () => {

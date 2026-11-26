@@ -181,7 +181,7 @@ describe("ability descriptions", () => {
     const withBreath = (): NpcSource => ({ ...npcSource(), items: [...npcSource().items, breath] });
 
     it("rescales an ability's fixed DC on a level change and notes its damage", () => {
-        // At level 3 DC 20 is Spell DC high; level 8's high is 26.
+        // The level-based DC is 18 at level 3 and 24 at level 8, so DCs move by 6.
         const plan = planLevelChange(activeNpc(withBreath()), 8, new Set());
         expect(plan.items.find(({ itemId }) => itemId === "breath1")?.fields).toEqual({
             "system.description.value":

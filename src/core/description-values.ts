@@ -1,6 +1,5 @@
 import { formatFormula, parseFormula, scaleSidePartial } from "./damage";
-import { rescale } from "./scale";
-import { SPELL_DC } from "./tables";
+import { levelBasedDc } from "./tables";
 
 /**
  * DCs and Strike riders written into an ability's description as fixed numbers, rescaled with a
@@ -32,8 +31,7 @@ export function changeLabels(values: readonly ValueChange[]): string[] {
 }
 
 /**
- * DCs are rated on Spell DC, the table GM Core gives for creatures' ability DCs, a guess from the
- * value alone. Plain text is only rewritten where the value appears once, since a
+ * DCs keep their offset from GM Core's level-based DC. Plain text is only rewritten where the value appears once, since a
  * second mention may be about something else. `kept` formulas are kept up to date elsewhere.
  */
 export function rescaleDescription(
@@ -126,7 +124,7 @@ function rescaleCheck(token: string, body: string, { levels, found }: Context): 
     const from = Number(dc[1]);
     const to = rescaleDc(from, levels);
     if (to === undefined) {
-        found.unscaled.push(leftAsIs(`DC ${from}`, "too far below the Spell DC table to move"));
+        found.unscaled.push(leftAsIs(`DC ${from}`, "the move would take it below 1"));
         return token;
     }
     found.values.push({ rating: "spellDC", from: `DC ${from}`, to: `DC ${to}` });
@@ -189,7 +187,7 @@ function rescalePlainDc(token: string, dc: string, { levels, counts, found }: Co
     }
     const to = rescaleDc(Number(dc), levels);
     if (to === undefined) {
-        found.unscaled.push(leftAsIs(`DC ${dc}`, "too far below the Spell DC table to move"));
+        found.unscaled.push(leftAsIs(`DC ${dc}`, "the move would take it below 1"));
         return token;
     }
     found.values.push({ rating: "spellDC", from: `DC ${dc}`, to: `DC ${to}` });
@@ -225,9 +223,12 @@ function rescalePlainDice(token: string, dice: string, context: Context): string
     return token.replace(dice, change.to);
 }
 
-/** A rescaled DC below 1 means the value was far off the table, so it is left for a human. */
+/**
+ * Keeps a DC's offset from GM Core's level-based DC, so a move and its reverse cancel exactly.
+ * A DC the move would take below 1 is left for a human.
+ */
 function rescaleDc(dc: number, { fromLevel, toLevel }: Levels): number | undefined {
-    const to = rescale(SPELL_DC, fromLevel, toLevel, dc) ?? dc;
+    const to = dc + levelBasedDc(toLevel) - levelBasedDc(fromLevel);
     return to >= 1 ? to : undefined;
 }
 
