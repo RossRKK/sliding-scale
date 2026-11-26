@@ -87,14 +87,18 @@ Area damage has only 1,250 round trips in the packs (193 within 2 levels), so it
 are rough.
 
 **Description numbers.** A DC or damage roll in an ability's description has no table of
-its own, so Sliding Scale guesses one from the value: DCs are rated on Spell DC and damage
-on the nearer Area Damage column. Damage written well below that column often loses dice
-it does not get back: an Apprentice Magician Clique's 5d4 at level 5 is 3d4+2 at level 3
-and 4d4+2 back. DCs are lost in 0.7% of round trips (0.7% within 2 levels), all column
-hopping or ties; damage in 34.2% (27.6%), mostly dropped dice (17.9%) and one die
-overshooting (11.8%). Values that follow the actor, flat checks, recharge rolls and
-durations are never touched; values mentioned more than once, flat or odd-die damage and
-persistent damage are listed in the note instead.
+its own, so Sliding Scale guesses one from the value: DCs are rated on Spell DC, and damage
+on whichever of Strike Damage and Area Damage it sits nearer at the old level. Damage the
+words call extra or additional, or that the creature's Strikes deal, is a rider and steps
+with sneak attack dice instead: Pack Attack's 1d4 at level 3 is 2d4 at level 8. DCs are
+lost in 0.8% of round trips (0.7% within 2 levels), mostly ties. Riders are lost in 6.2%
+(0.4%), almost all at the one-die floor. Other damage is lost in 34.4% (33.3%): mostly
+dice dropped to fit a small target and not added back (16.0%, 27.8% within 2 levels),
+since much description damage sits below even Strike Damage's low column: a Vanth's 2d6 at level 7 is 1d6+2 at level 5 and 1d6+4 back; one die
+overshooting (9.8%, 0.5%); and the reverse change re-picking the other table (7.2%,
+4.4%), which nothing stored can pin. Values that follow the actor, flat checks, recharge
+rolls and durations are never touched; values mentioned more than once, flat or odd-die
+damage and persistent damage are listed in the note instead.
 
 Also worth knowing:
 
