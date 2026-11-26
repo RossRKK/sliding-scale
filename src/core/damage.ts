@@ -176,6 +176,16 @@ interface Levels {
     readonly toLevel: number;
 }
 
+/** A precision, persistent or splash partial at a new level, by its category's rule. */
+export function scaleSidePartial(
+    category: SideCategory,
+    formula: Formula,
+    fromLevel: number,
+    toLevel: number,
+): Formula {
+    return SIDE_SCALING[category](formula, { fromLevel, toLevel });
+}
+
 // From an analysis of how these partials change across Paizo's creature families in the pf2e and sf2e packs.
 const SIDE_SCALING: Record<SideCategory, (formula: Formula, levels: Levels) => Formula> = {
     precision: (formula, levels) =>

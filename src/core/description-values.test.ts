@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { parseFormula, weaponDice, type StrikeDamage } from "./damage";
 import {
-    changeLabel,
+    changeLabels,
     damageRatingAt,
     rescaleDescription,
     type DescriptionRescale,
 } from "./description-values";
 
 /** The rescale with its changes as the note shows them. */
-function summarise({ text, changes, unscaled }: DescriptionRescale) {
-    return { text, rescaled: changes.map(changeLabel), unscaled };
+function summarise({ text, values, unscaled }: DescriptionRescale) {
+    return { text, rescaled: changeLabels(values), unscaled };
 }
 
 // Level 10 to 15. Spell DC moderate: 26 → 33. Damage this small sits nearer Strike Damage
@@ -119,6 +119,25 @@ describe("rescaleDescription", () => {
             rescaled: [],
             unscaled: [],
         });
+    });
+
+    it.each([
+        // Sneak attack dice: one at level 3, two at 5 to 10, three at 11.
+        [
+            "Pack Attack's extra damage",
+            `<p>The hell hound's Strikes deal 1d4 extra damage.</p>`,
+            3,
+            8,
+            "2d4",
+        ],
+        ["an additional rider", `<p>It deals an additional 1d6 fire damage.</p>`, 8, 11, "2d6"],
+        ["a Strike rider", `<p>Its Strikes deal 1d6 fire damage while raging.</p>`, 11, 3, "1d6"],
+        ["an enriched rider", `<p>Strikes deal @Damage[1d6[cold]] extra damage.</p>`, 4, 5, "2d6"],
+    ] as const)("steps %s with sneak attack dice", (_case, html, from, to, formula) => {
+        const { values } = rescaleDescription(html, from, to, []);
+        expect(values.map(({ rating, to: written }) => [rating, written])).toEqual([
+            ["rider", formula],
+        ]);
     });
 
     it("leaves a DC for a human when the move would take it below 1", () => {

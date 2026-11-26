@@ -29,6 +29,7 @@ type Cause =
     | "dice clamp"
     | "HP current clamp"
     | "table hopping"
+    | "value collision"
     | "other";
 
 const INHERENT: readonly Cause[] = [
@@ -40,6 +41,8 @@ const INHERENT: readonly Cause[] = [
     "HP current clamp",
     // A description's damage sits nearer the other damage table at the new level.
     "table hopping",
+    // Two of a description's values become equal, so the reverse change cannot tell them apart.
+    "value collision",
 ];
 
 interface Outcome {
@@ -184,25 +187,52 @@ function descriptionOutcomes(trip: Trip): Outcome[] {
             trip.start.level,
             precisionOf(trip.away, itemId),
         );
-        const returned = new Map(back.changes.map((change) => [change.from, change]));
-        return away.changes.map(({ rating, from, to }) => {
-            const end = returned.get(to)?.to ?? to;
-            const stat = (value: string) => valueStat(value, rating);
-            const backRating = returned.get(to)?.rating ?? ratingAt(to, rating, trip.away.level);
+        // Both legs read the same tokens in the same order, so values pair by position, unless
+        // the first made two mentions equal and the second left them as ambiguous.
+        const collided = back.values.length !== away.values.length;
+        return away.values.flatMap(({ rating, from, to }, index) => {
+            if (from === to) return [];
+            const returned = collided ? undefined : back.values[index];
+            const end = returned?.to ?? to;
             const cause =
                 end === from
                     ? undefined
-                    : backRating === rating
-                      ? statCause(trip, stat(from), stat(to), stat(end))
-                      : "table hopping";
-            const group = rating === "spellDC" ? "descriptionDC" : "descriptionDamage";
-            return outcome(trip, group, cause, `${itemId} ${from} → ${to} → ${end}`);
+                    : collided
+                      ? "value collision"
+                      : valueCause(trip, rating, [from, to, end], returned?.rating);
+            return [outcome(trip, GROUPS[rating], cause, `${itemId} ${from} → ${to} → ${end}`)];
         });
     });
 }
 
+const GROUPS: Record<ValueRating, string> = {
+    spellDC: "descriptionDC",
+    strikeDamage: "descriptionDamage",
+    areaDamage: "descriptionDamage",
+    rider: "descriptionRider",
+};
+
+function valueCause(
+    trip: Trip,
+    rating: ValueRating,
+    [from, to, end]: readonly [string, string, string],
+    backRating: ValueRating | undefined,
+): Cause {
+    // Riders step with sneak attack dice, so only the one-die floor loses them.
+    if (rating === "rider") {
+        const step =
+            (progressionAt(SNEAK_ATTACK_DICE, trip.away.level) ?? 0) -
+            (progressionAt(SNEAK_ATTACK_DICE, trip.start.level) ?? 0);
+        const count = parseFormula(from)?.dice?.count ?? 0;
+        return count + step < 1 ? "1-die floor" : "other";
+    }
+    if ((backRating ?? ratingAt(to, rating, trip.away.level)) !== rating) return "table hopping";
+    const stat = (value: string) => valueStat(value, rating);
+    return statCause(trip, stat(from), stat(to), stat(end));
+}
+
 /** The table the reverse level change rates a value on, which nothing stored can pin. */
-function ratingAt(value: string, rating: ValueRating, level: number): ValueRating {
+function ratingAt(value: string, rating: DcOrDamage, level: number): ValueRating {
     if (rating === "spellDC") return rating;
     const { target } = valueStat(value, rating);
     return target.kind === "strikeDamage" || target.kind === "areaDamage"
@@ -211,7 +241,9 @@ function ratingAt(value: string, rating: ValueRating, level: number): ValueRatin
 }
 
 /** A description value as the stat it is rated like on one leg. */
-function valueStat(value: string, rating: ValueRating): NpcStat {
+type DcOrDamage = Exclude<ValueRating, "rider">;
+
+function valueStat(value: string, rating: DcOrDamage): NpcStat {
     if (rating === "spellDC") {
         const dc = Number(value.slice(3));
         return { id: value, kind: "spellDC", value: dc, target: { kind: "areaDC", itemId: "" } };

@@ -14,8 +14,8 @@ const INLINE_ROLL = /\[\[\/(?:r|roll|gmr|gmroll|br|blindroll|pr|publicroll)\s[^\
 
 // Ten levels apart, so every fixed DC and damage roll the table can rate changes.
 const touched = (text: string) => {
-    const { changes, unscaled } = rescaleDescription(text, 5, 15, []);
-    return changes.length + unscaled.length > 0;
+    const { values, unscaled } = rescaleDescription(text, 5, 15, []);
+    return values.length + unscaled.length > 0;
 };
 
 describe.skipIf(PACKS_DIR === undefined)("fixed values in every pack NPC ability", () => {

@@ -3,7 +3,7 @@ import { applyAdjectives, rescaleStats, type StatChange } from "../core/stats";
 import type { Adjective } from "../core/adjective";
 import { hitPointAdjustment, type Adjustment } from "../core/elite-weak";
 import {
-    changeLabel,
+    changeLabels,
     rescaleDescription,
     type DescriptionRescale,
 } from "../core/description-values";
@@ -60,11 +60,12 @@ export function planLevelChange(
     return {
         actor: Object.fromEntries(kept),
         items: [...items, ...abilities],
-        descriptions: descriptions.flatMap(({ name, rescale: { changes, unscaled } }) =>
-            changes.length + unscaled.length > 0
-                ? [{ item: name, rescaled: changes.map(changeLabel), unscaled }]
-                : [],
-        ),
+        descriptions: descriptions.flatMap(({ name, rescale: { values, unscaled } }) => {
+            const rescaled = changeLabels(values);
+            return rescaled.length + unscaled.length > 0
+                ? [{ item: name, rescaled, unscaled }]
+                : [];
+        }),
     };
 }
 

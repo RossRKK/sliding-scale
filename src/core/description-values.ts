@@ -4,6 +4,7 @@ import {
     parseFormula,
     rebuildAreaDamage,
     rebuildDamage,
+    scaleSidePartial,
     weaponDice,
     type PartialChange,
     type StrikeDamage,
@@ -18,8 +19,8 @@ import { AREA_DAMAGE, SPELL_DC, STRIKE_DAMAGE, type ScaleTable } from "./tables"
  */
 export interface DescriptionRescale {
     readonly text: string;
-    /** What changed, for a human to check. */
-    readonly changes: readonly ValueChange[];
+    /** Every value rescaled, in the order it appears, whether or not the level change moved it. */
+    readonly values: readonly ValueChange[];
     /** Level-dependent values left as they were, for a human to do. */
     readonly unscaled: readonly string[];
 }
@@ -31,12 +32,14 @@ export interface ValueChange {
     readonly to: string;
 }
 
-export type ValueRating = "spellDC" | DamageRating;
+/** Riders, extra damage added to Strikes, scale with the creature like precision damage does. */
+export type ValueRating = "spellDC" | DamageRating | "rider";
 export type DamageRating = "strikeDamage" | "areaDamage";
 
-/** "DC 25 → 28" or "6d6 → 8d6". */
-export function changeLabel({ from, to }: ValueChange): string {
-    return `${from} → ${to.replace(/^DC /, "")}`;
+/** What a level change moved, once each, as "DC 25 → 28" or "6d6 → 8d6" for a human to check. */
+export function changeLabels(values: readonly ValueChange[]): string[] {
+    const moved = values.filter(({ from, to }) => from !== to);
+    return [...new Set(moved.map(({ from, to }) => `${from} → ${to.replace(/^DC /, "")}`))];
 }
 
 /**
@@ -51,18 +54,19 @@ export function rescaleDescription(
     toLevel: number,
     kept: readonly string[],
 ): DescriptionRescale {
-    const found: Found = { changes: [], unscaled: [] };
+    const found: Found = { values: [], unscaled: [] };
     const levels = { fromLevel, toLevel };
     const counts = plainTokenCounts(description);
     const text = description.replaceAll(TOKEN, (token: string, ...rest: unknown[]) => {
         const groups = rest.at(-1) as Groups;
-        return rescaleToken(token, groups, { levels, counts, kept, found });
+        const rider = isRider(description, rest.at(-3) as number, token.length);
+        return rescaleToken(token, groups, { levels, counts, kept, found, rider });
     });
-    return { text, changes: uniqueChanges(found.changes), unscaled: unique(found.unscaled) };
+    return { text, values: found.values, unscaled: unique(found.unscaled) };
 }
 
 interface Found {
-    readonly changes: ValueChange[];
+    readonly values: ValueChange[];
     readonly unscaled: string[];
 }
 
@@ -71,6 +75,8 @@ interface Context {
     readonly counts: ReadonlyMap<string, number>;
     readonly kept: readonly string[];
     readonly found: Found;
+    /** The token is extra damage added to the creature's Strikes. */
+    readonly rider: boolean;
 }
 
 interface Levels {
@@ -133,11 +139,11 @@ function rescaleCheck(token: string, body: string, { levels, found }: Context): 
         found.unscaled.push(`DC ${from} (too far below the table to move)`);
         return token;
     }
-    if (to !== from) found.changes.push({ rating: "spellDC", from: `DC ${from}`, to: `DC ${to}` });
+    found.values.push({ rating: "spellDC", from: `DC ${from}`, to: `DC ${to}` });
     return token.replace(dc[0], dc[0].replace(String(from), String(to)));
 }
 
-function rescaleDamageRoll(token: string, body: string, { levels, found }: Context): string {
+function rescaleDamageRoll(token: string, body: string, { levels, found, rider }: Context): string {
     const [partials = "", ...options] = body.split("|");
     if (followsActor(partials)) return token;
     const rewritten = partials.split(/,(?![^[]*\])/).map((partial) => {
@@ -152,13 +158,13 @@ function rescaleDamageRoll(token: string, body: string, { levels, found }: Conte
             found.unscaled.push(label);
             return partial;
         }
-        const change = rescaleDamage(formula, levels);
+        const change = rescaleDamage(formula, levels, rider);
         if (change === undefined) {
             found.unscaled.push(label);
             return partial;
         }
         const { to } = change;
-        if (to !== formula) found.changes.push(change);
+        found.values.push(change);
         // pf2e needs brackets round a formula with a modifier before its category, and only then.
         const written = /[+-]/.test(to) ? `(${to})` : to;
         return partial.includes(`(${raw})`)
@@ -168,18 +174,18 @@ function rescaleDamageRoll(token: string, body: string, { levels, found }: Conte
     return `@Damage[${[rewritten.join(","), ...options].join("|")}]`;
 }
 
-function rescaleInlineRoll(token: string, body: string, { levels, found }: Context): string {
+function rescaleInlineRoll(token: string, body: string, { levels, found, rider }: Context): string {
     if (/recharge/i.test(body) || followsActor(body)) return token;
     const [formulaText = "", ...label] = body.split("#");
     const formula = compact(formulaText.replaceAll(/\[[^\]]*\]|[()]/g, ""));
     if (!/\d+d\d+/.test(formula)) return token;
-    const change = rescaleDamage(formula, levels);
+    const change = rescaleDamage(formula, levels, rider);
     if (change === undefined) {
         found.unscaled.push(formula);
         return token;
     }
     const { to } = change;
-    if (to !== formula) found.changes.push(change);
+    found.values.push(change);
     const command = /^\[\[\/(\w+)/.exec(token)?.[1] ?? "r";
     const suffix = label.length > 0 ? ` #${label.join("#")}` : "";
     return `[[/${command} ${to}${suffix}]]`;
@@ -195,9 +201,7 @@ function rescalePlainDc(token: string, dc: string, { levels, counts, found }: Co
         found.unscaled.push(`DC ${dc} (too far below the table to move)`);
         return token;
     }
-    if (to !== Number(dc)) {
-        found.changes.push({ rating: "spellDC", from: `DC ${dc}`, to: `DC ${to}` });
-    }
+    found.values.push({ rating: "spellDC", from: `DC ${dc}`, to: `DC ${to}` });
     return token.replace(dc, String(to));
 }
 
@@ -213,19 +217,19 @@ function rescaleSideDice(
 }
 
 function rescalePlainDice(token: string, dice: string, context: Context): string {
-    const { levels, counts, kept, found } = context;
+    const { levels, counts, kept, found, rider } = context;
     const formula = compact(dice);
     if (kept.includes(formula)) return token;
     if (counts.get(formula) !== 1) {
         found.unscaled.push(`${formula} (mentioned more than once)`);
         return token;
     }
-    const change = rescaleDamage(formula, levels);
+    const change = rescaleDamage(formula, levels, rider);
     if (change === undefined) {
         found.unscaled.push(formula);
         return token;
     }
-    if (change.to !== formula) found.changes.push(change);
+    found.values.push(change);
     return token.replace(dice, change.to);
 }
 
@@ -236,10 +240,15 @@ function rescaleDc(dc: number, { fromLevel, toLevel }: Levels): number | undefin
 }
 
 /** Weapon dice the strike rules can rebuild; anything else (1d3, 2d18, flat numbers) is left. */
-function rescaleDamage(formula: string, levels: Levels): ValueChange | undefined {
+function rescaleDamage(formula: string, levels: Levels, rider: boolean): ValueChange | undefined {
     const parsed = parseFormula(formula);
     const dice = parsed?.dice === undefined ? undefined : weaponDice(parsed.dice);
     if (parsed === undefined || dice === undefined) return undefined;
+    if (rider) {
+        const { fromLevel, toLevel } = levels;
+        const scaled = scaleSidePartial("precision", parsed, fromLevel, toLevel);
+        return { rating: "rider", from: formula, to: formatFormula(scaled) };
+    }
     const damage: StrikeDamage = {
         main: { key: "main", dice, flat: parsed.flat },
         extras: [],
@@ -289,6 +298,22 @@ function rebuildOn(
     };
 }
 
+// "deal 1d4 extra damage", "an additional 1d6 fire damage", "its Strikes deal 1d6 fire damage".
+const RIDER_BEFORE = /\b(?:extra|additional)\s*$|\bStrikes?\b[^.]*\bdeals?\b[^.]*$/i;
+const RIDER_AFTER = /^\s*(?:[a-z]+\s+)?(?:extra|additional)\b/i;
+
+/** Whether the words round a damage value say it is added to the creature's Strikes. */
+function isRider(description: string, offset: number, length: number): boolean {
+    const prose = (text: string) => text.replaceAll(/<[^>]+>/g, " ");
+    const sentenceStart = Math.max(
+        description.lastIndexOf(".", offset),
+        description.lastIndexOf(">", offset),
+    );
+    const before = prose(description.slice(Math.max(0, sentenceStart + 1), offset));
+    const after = prose(description.slice(offset + length, offset + length + 60));
+    return RIDER_BEFORE.test(before) || RIDER_AFTER.test(after);
+}
+
 /** How often each plain-text DC and dice formula appears, so only single mentions are rewritten. */
 function plainTokenCounts(description: string): Map<string, number> {
     const counts = new Map<string, number>();
@@ -311,14 +336,6 @@ function followsActor(text: string): boolean {
 
 function compact(formula: string): string {
     return formula.replaceAll(/\s/g, "");
-}
-
-function uniqueChanges(changes: readonly ValueChange[]): ValueChange[] {
-    const seen = new Set<string>();
-    return changes.filter((change) => {
-        const key = changeLabel(change);
-        return seen.has(key) ? false : (seen.add(key), true);
-    });
 }
 
 function unique(values: readonly string[]): string[] {
