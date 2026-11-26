@@ -3,11 +3,13 @@ import {
     formatFormula,
     parseFormula,
     rebuildAreaDamage,
+    rebuildDamage,
     weaponDice,
+    type PartialChange,
     type StrikeDamage,
 } from "./damage";
-import { rescale } from "./scale";
-import { AREA_DAMAGE, SPELL_DC } from "./tables";
+import { derive, rescale } from "./scale";
+import { AREA_DAMAGE, SPELL_DC, STRIKE_DAMAGE, type ScaleTable } from "./tables";
 
 /**
  * DCs and damage written into an ability's description as fixed numbers, rescaled with a level
@@ -16,15 +18,30 @@ import { AREA_DAMAGE, SPELL_DC } from "./tables";
  */
 export interface DescriptionRescale {
     readonly text: string;
-    /** What changed, as "DC 25 → 28" or "6d6 → 8d6", for a human to check. */
-    readonly rescaled: readonly string[];
+    /** What changed, for a human to check. */
+    readonly changes: readonly ValueChange[];
     /** Level-dependent values left as they were, for a human to do. */
     readonly unscaled: readonly string[];
 }
 
+/** One value a level change moved, and the table it was rated on there. */
+export interface ValueChange {
+    readonly rating: ValueRating;
+    readonly from: string;
+    readonly to: string;
+}
+
+export type ValueRating = "spellDC" | DamageRating;
+export type DamageRating = "strikeDamage" | "areaDamage";
+
+/** "DC 25 → 28" or "6d6 → 8d6". */
+export function changeLabel({ from, to }: ValueChange): string {
+    return `${from} → ${to.replace(/^DC /, "")}`;
+}
+
 /**
  * DCs are rated on Spell DC, the table GM Core gives for creatures' ability DCs, and damage on
- * Area Damage's nearer column, the closest table to most damaging abilities: both are guesses
+ * whichever of Strike Damage and Area Damage it sits nearer at the old level: both are guesses
  * from the value alone. Plain text is only rewritten where the value appears once, since a
  * second mention may be about something else. `kept` formulas are kept up to date elsewhere.
  */
@@ -34,18 +51,18 @@ export function rescaleDescription(
     toLevel: number,
     kept: readonly string[],
 ): DescriptionRescale {
-    const found: Found = { rescaled: [], unscaled: [] };
+    const found: Found = { changes: [], unscaled: [] };
     const levels = { fromLevel, toLevel };
     const counts = plainTokenCounts(description);
     const text = description.replaceAll(TOKEN, (token: string, ...rest: unknown[]) => {
         const groups = rest.at(-1) as Groups;
         return rescaleToken(token, groups, { levels, counts, kept, found });
     });
-    return { text, rescaled: unique(found.rescaled), unscaled: unique(found.unscaled) };
+    return { text, changes: uniqueChanges(found.changes), unscaled: unique(found.unscaled) };
 }
 
 interface Found {
-    readonly rescaled: string[];
+    readonly changes: ValueChange[];
     readonly unscaled: string[];
 }
 
@@ -116,7 +133,7 @@ function rescaleCheck(token: string, body: string, { levels, found }: Context): 
         found.unscaled.push(`DC ${from} (too far below the table to move)`);
         return token;
     }
-    if (to !== from) found.rescaled.push(`DC ${from} → ${to}`);
+    if (to !== from) found.changes.push({ rating: "spellDC", from: `DC ${from}`, to: `DC ${to}` });
     return token.replace(dc[0], dc[0].replace(String(from), String(to)));
 }
 
@@ -135,12 +152,13 @@ function rescaleDamageRoll(token: string, body: string, { levels, found }: Conte
             found.unscaled.push(label);
             return partial;
         }
-        const to = rescaleDamage(formula, levels);
-        if (to === undefined) {
+        const change = rescaleDamage(formula, levels);
+        if (change === undefined) {
             found.unscaled.push(label);
             return partial;
         }
-        if (to !== formula) found.rescaled.push(`${formula} → ${to}`);
+        const { to } = change;
+        if (to !== formula) found.changes.push(change);
         // pf2e needs brackets round a formula with a modifier before its category, and only then.
         const written = /[+-]/.test(to) ? `(${to})` : to;
         return partial.includes(`(${raw})`)
@@ -155,12 +173,13 @@ function rescaleInlineRoll(token: string, body: string, { levels, found }: Conte
     const [formulaText = "", ...label] = body.split("#");
     const formula = compact(formulaText.replaceAll(/\[[^\]]*\]|[()]/g, ""));
     if (!/\d+d\d+/.test(formula)) return token;
-    const to = rescaleDamage(formula, levels);
-    if (to === undefined) {
+    const change = rescaleDamage(formula, levels);
+    if (change === undefined) {
         found.unscaled.push(formula);
         return token;
     }
-    if (to !== formula) found.rescaled.push(`${formula} → ${to}`);
+    const { to } = change;
+    if (to !== formula) found.changes.push(change);
     const command = /^\[\[\/(\w+)/.exec(token)?.[1] ?? "r";
     const suffix = label.length > 0 ? ` #${label.join("#")}` : "";
     return `[[/${command} ${to}${suffix}]]`;
@@ -176,7 +195,9 @@ function rescalePlainDc(token: string, dc: string, { levels, counts, found }: Co
         found.unscaled.push(`DC ${dc} (too far below the table to move)`);
         return token;
     }
-    if (to !== Number(dc)) found.rescaled.push(`DC ${dc} → ${to}`);
+    if (to !== Number(dc)) {
+        found.changes.push({ rating: "spellDC", from: `DC ${dc}`, to: `DC ${to}` });
+    }
     return token.replace(dc, String(to));
 }
 
@@ -199,13 +220,13 @@ function rescalePlainDice(token: string, dice: string, context: Context): string
         found.unscaled.push(`${formula} (mentioned more than once)`);
         return token;
     }
-    const to = rescaleDamage(formula, levels);
-    if (to === undefined) {
+    const change = rescaleDamage(formula, levels);
+    if (change === undefined) {
         found.unscaled.push(formula);
         return token;
     }
-    if (to !== formula) found.rescaled.push(`${formula} → ${to}`);
-    return token.replace(dice, to);
+    if (change.to !== formula) found.changes.push(change);
+    return token.replace(dice, change.to);
 }
 
 /** A rescaled DC below 1 means the value was far off the table, so it is left for a human. */
@@ -215,7 +236,7 @@ function rescaleDc(dc: number, { fromLevel, toLevel }: Levels): number | undefin
 }
 
 /** Weapon dice the strike rules can rebuild; anything else (1d3, 2d18, flat numbers) is left. */
-function rescaleDamage(formula: string, { fromLevel, toLevel }: Levels): string | undefined {
+function rescaleDamage(formula: string, levels: Levels): ValueChange | undefined {
     const parsed = parseFormula(formula);
     const dice = parsed?.dice === undefined ? undefined : weaponDice(parsed.dice);
     if (parsed === undefined || dice === undefined) return undefined;
@@ -224,10 +245,48 @@ function rescaleDamage(formula: string, { fromLevel, toLevel }: Levels): string 
         extras: [],
         sides: [],
     };
-    const target = rescale(AREA_DAMAGE, fromLevel, toLevel, damageAverage(damage));
-    const rebuilt =
-        target === undefined ? undefined : rebuildAreaDamage(damage, target, fromLevel, toLevel);
-    return rebuilt?.[0]?.formula ?? formatFormula(parsed);
+    const rating = damageRatingAt(damage, levels.fromLevel);
+    const rebuilt = DAMAGE_RATINGS[rating].rebuild(damage, levels);
+    return { rating, from: formula, to: rebuilt?.[0]?.formula ?? formatFormula(parsed) };
+}
+
+/**
+ * The table a damage value sits nearer at its level, Strike Damage on a tie as the finer table.
+ * It is chosen at the old level, so a level change keeps it, as area attacks keep their column.
+ */
+export function damageRatingAt(damage: StrikeDamage, level: number): DamageRating {
+    const distance = (rating: DamageRating) =>
+        Math.abs(
+            derive(DAMAGE_RATINGS[rating].table, level, damageAverage(damage))?.offset ?? Infinity,
+        );
+    return distance("areaDamage") < distance("strikeDamage") ? "areaDamage" : "strikeDamage";
+}
+
+const DAMAGE_RATINGS: Record<
+    DamageRating,
+    {
+        readonly table: ScaleTable;
+        readonly rebuild: (damage: StrikeDamage, levels: Levels) => PartialChange[] | undefined;
+    }
+> = {
+    strikeDamage: { table: STRIKE_DAMAGE, rebuild: rebuildOn(STRIKE_DAMAGE, rebuildDamage) },
+    areaDamage: { table: AREA_DAMAGE, rebuild: rebuildOn(AREA_DAMAGE, rebuildAreaDamage) },
+};
+
+/** Rates the damage on the table at the old level and rebuilds it for the same rating at the new. */
+function rebuildOn(
+    table: ScaleTable,
+    rebuild: (
+        damage: StrikeDamage,
+        target: number,
+        from: number,
+        to: number,
+    ) => PartialChange[] | undefined,
+): (damage: StrikeDamage, levels: Levels) => PartialChange[] | undefined {
+    return (damage, { fromLevel, toLevel }) => {
+        const target = rescale(table, fromLevel, toLevel, damageAverage(damage));
+        return target === undefined ? undefined : rebuild(damage, target, fromLevel, toLevel);
+    };
 }
 
 /** How often each plain-text DC and dice formula appears, so only single mentions are rewritten. */
@@ -252,6 +311,14 @@ function followsActor(text: string): boolean {
 
 function compact(formula: string): string {
     return formula.replaceAll(/\s/g, "");
+}
+
+function uniqueChanges(changes: readonly ValueChange[]): ValueChange[] {
+    const seen = new Set<string>();
+    return changes.filter((change) => {
+        const key = changeLabel(change);
+        return seen.has(key) ? false : (seen.add(key), true);
+    });
 }
 
 function unique(values: readonly string[]): string[] {

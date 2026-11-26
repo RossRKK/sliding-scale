@@ -8,7 +8,7 @@ import {
     weaponDice,
     type StrikeDamage,
 } from "../core/damage";
-import { rescaleDescription } from "../core/description-values";
+import { damageRatingAt, rescaleDescription, type ValueRating } from "../core/description-values";
 import { BOMB_TIER, progressionAt, SNEAK_ATTACK_DICE, type Band } from "../core/progressions";
 import { adjectivesOf, columnValue, derive, rescale } from "../core/scale";
 import { TABLE_OF } from "../core/stats";
@@ -28,6 +28,7 @@ type Cause =
     | "one-die overshoot"
     | "dice clamp"
     | "HP current clamp"
+    | "table hopping"
     | "other";
 
 const INHERENT: readonly Cause[] = [
@@ -37,6 +38,8 @@ const INHERENT: readonly Cause[] = [
     "one-die overshoot",
     "dice clamp",
     "HP current clamp",
+    // A description's damage sits nearer the other damage table at the new level.
+    "table hopping",
 ];
 
 interface Outcome {
@@ -181,34 +184,37 @@ function descriptionOutcomes(trip: Trip): Outcome[] {
             trip.start.level,
             precisionOf(trip.away, itemId),
         );
-        const returned = new Map(back.rescaled.map(pairOf).map(({ from, to }) => [from, to]));
-        return away.rescaled.map(pairOf).map(({ from, to }) => {
-            const end = returned.get(to) ?? to;
+        const returned = new Map(back.changes.map((change) => [change.from, change]));
+        return away.changes.map(({ rating, from, to }) => {
+            const end = returned.get(to)?.to ?? to;
+            const stat = (value: string) => valueStat(value, rating);
+            const backRating = returned.get(to)?.rating ?? ratingAt(to, rating, trip.away.level);
             const cause =
                 end === from
                     ? undefined
-                    : statCause(trip, valueStat(from), valueStat(to), valueStat(end));
-            const group = from.startsWith("DC") ? "descriptionDC" : "descriptionDamage";
+                    : backRating === rating
+                      ? statCause(trip, stat(from), stat(to), stat(end))
+                      : "table hopping";
+            const group = rating === "spellDC" ? "descriptionDC" : "descriptionDamage";
             return outcome(trip, group, cause, `${itemId} ${from} → ${to} → ${end}`);
         });
     });
 }
 
-/** "DC 25 → 32" or "6d6 → 8d6", with the DC prefix restored on both sides. */
-function pairOf(entry: string): { from: string; to: string } {
-    const [from = "", to = ""] = entry.split(" → ");
-    return { from, to: from.startsWith("DC") ? `DC ${to}` : to };
+/** The table the reverse level change rates a value on, which nothing stored can pin. */
+function ratingAt(value: string, rating: ValueRating, level: number): ValueRating {
+    if (rating === "spellDC") return rating;
+    const { target } = valueStat(value, rating);
+    return target.kind === "strikeDamage" || target.kind === "areaDamage"
+        ? damageRatingAt(target.damage, level)
+        : rating;
 }
 
-/** A description value as the stat it is rated like: Spell DC, or Area Damage. */
-function valueStat(value: string): NpcStat {
-    if (value.startsWith("DC")) {
-        return {
-            id: value,
-            kind: "areaDC",
-            value: Number(value.slice(3)),
-            target: { kind: "areaDC", itemId: "" },
-        };
+/** A description value as the stat it is rated like on one leg. */
+function valueStat(value: string, rating: ValueRating): NpcStat {
+    if (rating === "spellDC") {
+        const dc = Number(value.slice(3));
+        return { id: value, kind: "spellDC", value: dc, target: { kind: "areaDC", itemId: "" } };
     }
     const { dice, flat } = parseFormula(value)!;
     const damage: StrikeDamage = {
@@ -216,12 +222,8 @@ function valueStat(value: string): NpcStat {
         extras: [],
         sides: [],
     };
-    return {
-        id: value,
-        kind: "areaDamage",
-        value: damageAverage(damage),
-        target: { kind: "areaDamage", itemId: "", damage },
-    };
+    const target = { kind: rating, itemId: "", damage } as const;
+    return { id: value, kind: rating, value: damageAverage(damage), target };
 }
 
 function precisionOf(build: ActiveBuild, itemId: string): string[] {
@@ -390,9 +392,11 @@ function report(outcomes: readonly Outcome[]): string {
         const near = all.filter((outcome) => outcome.near);
         const lost = all.filter(({ cause }) => cause !== undefined);
         const lostNear = near.filter(({ cause }) => cause !== undefined);
-        const byCause = causes.map(
-            (cause) => all.filter((outcome) => outcome.cause === cause).length,
-        );
+        // Each cause as a share of all trips, then of trips of at most two levels.
+        const byCause = causes.map((cause) => {
+            const lostTo = (trips: readonly Outcome[]) => trips.filter((o) => o.cause === cause);
+            return `${rate(lostTo(all).length, all.length)} / ${rate(lostTo(near).length, near.length)}`;
+        });
         return [
             group,
             all.length,
@@ -401,5 +405,6 @@ function report(outcomes: readonly Outcome[]): string {
             ...byCause,
         ].join(" | ");
     });
-    return ["stat | trips | lost | lost ±2 | " + causes.join(" | "), ...rows].join("\n");
+    const header = `stat | trips | lost | lost ±2 | ${causes.map((cause) => `${cause} (all / ±2)`).join(" | ")}`;
+    return [header, ...rows].join("\n");
 }

@@ -2,7 +2,11 @@ import { rebuildAreaDamage, rebuildDamage, type PartialChange } from "../core/da
 import { applyAdjectives, rescaleStats, type StatChange } from "../core/stats";
 import type { Adjective } from "../core/adjective";
 import { hitPointAdjustment, type Adjustment } from "../core/elite-weak";
-import { rescaleDescription, type DescriptionRescale } from "../core/description-values";
+import {
+    changeLabel,
+    rescaleDescription,
+    type DescriptionRescale,
+} from "../core/description-values";
 import type { DescriptionValues } from "../core/notes";
 import { AREA_DC_ABOVE_BONUS, type AbilityDescription, type ActiveBuild, type Target } from "./npc";
 import { rescaleAbility } from "./precision-abilities";
@@ -56,8 +60,10 @@ export function planLevelChange(
     return {
         actor: Object.fromEntries(kept),
         items: [...items, ...abilities],
-        descriptions: descriptions.flatMap(({ name, rescale: { rescaled, unscaled } }) =>
-            rescaled.length + unscaled.length > 0 ? [{ item: name, rescaled, unscaled }] : [],
+        descriptions: descriptions.flatMap(({ name, rescale: { changes, unscaled } }) =>
+            changes.length + unscaled.length > 0
+                ? [{ item: name, rescaled: changes.map(changeLabel), unscaled }]
+                : [],
         ),
     };
 }

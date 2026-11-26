@@ -1,28 +1,40 @@
 import { describe, expect, it } from "vitest";
-import { rescaleDescription } from "./description-values";
+import { parseFormula, weaponDice, type StrikeDamage } from "./damage";
+import {
+    changeLabel,
+    damageRatingAt,
+    rescaleDescription,
+    type DescriptionRescale,
+} from "./description-values";
 
-// Level 10 to 15. Spell DC: moderate 26 → 33. Area Damage unlimited: 20 → 27.
+/** The rescale with its changes as the note shows them. */
+function summarise({ text, changes, unscaled }: DescriptionRescale) {
+    return { text, rescaled: changes.map(changeLabel), unscaled };
+}
+
+// Level 10 to 15. Spell DC moderate: 26 → 33. Damage this small sits nearer Strike Damage
+// (moderate 22 → 30, one more die) than Area Damage (unlimited 20 → 27).
 describe("rescaleDescription", () => {
     it.each([
         [
             "a basic save with breath damage",
             `<p>Fire deals @Damage[(6d6+2)[fire]|options:area-damage] damage (@Check[reflex|dc:25|basic]).</p>`,
-            `<p>Fire deals @Damage[(8d6+2)[fire]|options:area-damage] damage (@Check[reflex|dc:32|basic]).</p>`,
-            ["6d6+2 → 8d6+2", "DC 25 → 32"],
+            `<p>Fire deals @Damage[(7d6+7)[fire]|options:area-damage] damage (@Check[reflex|dc:32|basic]).</p>`,
+            ["6d6+2 → 7d6+7", "DC 25 → 32"],
             [],
         ],
         [
             "the main partial, leaving persistent damage to a human",
             `<p>@Damage[8d6[acid],1d6[persistent,acid]]</p>`,
-            `<p>@Damage[10d6[acid],1d6[persistent,acid]]</p>`,
-            ["8d6 → 10d6"],
+            `<p>@Damage[(9d6+7)[acid],1d6[persistent,acid]]</p>`,
+            ["8d6 → 9d6+7"],
             ["1d6 persistent,acid"],
         ],
         [
             "damage whose formula carries its own category",
             `<p>@Damage[(2d8[splash])[acid]] and @Damage[2d6[fire]]</p>`,
-            `<p>@Damage[(2d8[splash])[acid]] and @Damage[4d6[fire]]</p>`,
-            ["2d6 → 4d6"],
+            `<p>@Damage[(2d8[splash])[acid]] and @Damage[(3d6+4)[fire]]</p>`,
+            ["2d6 → 3d6+4"],
             ["2d8 splash acid"],
         ],
         [
@@ -42,12 +54,16 @@ describe("rescaleDescription", () => {
         [
             "plain-text DC and damage mentioned once",
             `<p>A creature that fails a DC 25 Fortitude save takes 2d6 fire damage.</p>`,
-            `<p>A creature that fails a DC 32 Fortitude save takes 4d6 fire damage.</p>`,
-            ["DC 25 → 32", "2d6 → 4d6"],
+            `<p>A creature that fails a DC 32 Fortitude save takes 3d6+4 fire damage.</p>`,
+            ["DC 25 → 32", "2d6 → 3d6+4"],
             [],
         ],
     ])("rescales %s", (_case, html, text, rescaled, unscaled) => {
-        expect(rescaleDescription(html, 10, 15, [])).toEqual({ text, rescaled, unscaled });
+        expect(summarise(rescaleDescription(html, 10, 15, []))).toEqual({
+            text,
+            rescaled,
+            unscaled,
+        });
     });
 
     it.each([
@@ -70,7 +86,7 @@ describe("rescaleDescription", () => {
             ["1d3 fire", "2d18 cold"],
         ],
     ])("leaves %s for a human", (_case, html, unscaled) => {
-        expect(rescaleDescription(html, 10, 15, [])).toEqual({
+        expect(summarise(rescaleDescription(html, 10, 15, []))).toEqual({
             text: html,
             rescaled: [],
             unscaled,
@@ -98,7 +114,7 @@ describe("rescaleDescription", () => {
         ["a link label", `<p>See @UUID[Compendium.pf2e.conditions.Item.abc]{Frightened 2}.</p>`],
         ["a number in markup", `<p class="dc-25" data-roll="2d6">Text.</p>`],
     ])("does not touch %s", (_case, html) => {
-        expect(rescaleDescription(html, 10, 15, [])).toEqual({
+        expect(summarise(rescaleDescription(html, 10, 15, []))).toEqual({
             text: html,
             rescaled: [],
             unscaled: [],
@@ -108,7 +124,7 @@ describe("rescaleDescription", () => {
     it("leaves a DC for a human when the move would take it below 1", () => {
         // Level 20 moderate Spell DC is 39, so 13 is 26 below: level -1's moderate is 13.
         const html = `<p>@Check[will|dc:13]</p>`;
-        expect(rescaleDescription(html, 20, -1, [])).toEqual({
+        expect(summarise(rescaleDescription(html, 20, -1, []))).toEqual({
             text: html,
             rescaled: [],
             unscaled: ["DC 13 (too far below the table to move)"],
@@ -135,10 +151,26 @@ describe("rescaleDescription", () => {
 
     it("changes nothing when the level does not", () => {
         const html = `<p>@Damage[(6d6+2)[fire]] (@Check[reflex|dc:25|basic])</p>`;
-        expect(rescaleDescription(html, 10, 10, [])).toEqual({
+        expect(summarise(rescaleDescription(html, 10, 10, []))).toEqual({
             text: html,
             rescaled: [],
             unscaled: [],
         });
+    });
+});
+
+describe("damageRatingAt", () => {
+    const damage = (formula: string): StrikeDamage => {
+        const { dice, flat } = parseFormula(formula)!;
+        return { main: { key: "main", dice: weaponDice(dice!)!, flat }, extras: [], sides: [] };
+    };
+
+    it.each([
+        // Level 3: 4d6 (14) is Area Damage limited exactly, one under Strike Damage extreme 15.
+        ["4d6", 3, "areaDamage"],
+        // Level 10: 2d6 (7) is 10 under Strike Damage low 17 but 13 under Area unlimited 20.
+        ["2d6", 10, "strikeDamage"],
+    ] as const)("rates %s at level %i on the nearer table", (formula, level, rating) => {
+        expect(damageRatingAt(damage(formula), level)).toBe(rating);
     });
 });
